@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>めっちゃカメレオン 3D - 広大な美術館編</title>
+    <title>めっちゃカメレオン 3D - 改良版</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -27,15 +27,15 @@
             z-index: 200;
         }
         #title-screen h1 {
-            font-size: 52px;
+            font-size: 48px;
             color: #f39c12;
             text-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
             margin-bottom: 15px;
         }
         #title-screen p {
-            font-size: 16px;
+            font-size: 15px;
             color: #bdc3c7;
-            max-width: 500px;
+            max-width: 550px;
             text-align: center;
             line-height: 1.6;
             margin-bottom: 30px;
@@ -64,6 +64,7 @@
             border: 1px solid rgba(255,255,255,0.15);
             backdrop-filter: blur(8px);
             z-index: 10;
+            pointer-events: none;
         }
         .timer-title { font-size: 12px; color: #aaa; }
         .timer-val { font-size: 28px; font-weight: bold; color: #2ecc71; font-family: monospace; }
@@ -79,12 +80,12 @@
             border-radius: 30px;
             border: 1px solid rgba(255,255,255,0.2);
             display: flex;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
             z-index: 10;
         }
         .color-swatch {
-            width: 28px; height: 28px;
+            width: 26px; height: 26px;
             border-radius: 50%;
             border: 2px solid #fff;
             cursor: pointer;
@@ -93,37 +94,43 @@
         .color-swatch:hover { transform: scale(1.2); }
         .color-swatch.selected { border-color: #f39c12; transform: scale(1.3); box-shadow: 0 0 10px #f39c12; }
 
-        /* 操作説明・ポーズバー（画面下部） */
-        #controls-bar {
+        /* 筆の太さボタン */
+        .brush-size-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .brush-size-btn.active {
+            background: #f39c12;
+            color: #111;
+            font-weight: bold;
+            border-color: #fff;
+        }
+
+        /* 操作説明ガイド（下部） */
+        #guide-bar {
             position: absolute;
             bottom: 20px; left: 50%;
             transform: translateX(-50%);
             background: rgba(20, 20, 30, 0.9);
-            padding: 12px 24px;
-            border-radius: 30px;
-            border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            z-index: 10;
-        }
-        .pose-btn {
-            padding: 8px 16px;
+            padding: 10px 24px;
             border-radius: 20px;
-            border: 1px solid #666;
-            background: #2a2a3a;
-            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
             font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
+            color: #ddd;
+            z-index: 10;
+            pointer-events: none;
+            text-align: center;
         }
-        .pose-btn.active { background: #f39c12; color: #111; border-color: #fff; box-shadow: 0 0 10px rgba(243,156,18,0.5); }
 
         /* 擬態成功度バー */
         #stealth-meter {
             position: absolute;
-            bottom: 80px; left: 50%;
+            bottom: 65px; left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.8);
             padding: 6px 16px;
@@ -133,6 +140,7 @@
             align-items: center;
             gap: 10px;
             z-index: 10;
+            pointer-events: none;
         }
         #meter-bar-fill {
             width: 0%; height: 10px; background: #e74c3c; border-radius: 5px; transition: width 0.2s;
@@ -161,7 +169,7 @@
             background: #f39c12; color: #111; font-weight: bold; font-size: 16px; cursor: pointer;
         }
     </style>
-    <!-- Three.js (3Dライブラリ) -->
+    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -171,9 +179,11 @@
     <!-- タイトル画面 -->
     <div id="title-screen">
         <h1>🦎 めっちゃカメレオン 3D</h1>
-        <p>広大な美術館に忍び込んだ棒人間カメレオン！<br>
-        棒人間を<b>クリック＆ドラッグして直接色を塗り</b>、ポーズを合わせて絵画や彫刻と同化しよう。<br>
-        スタート後<b>30秒で巡回鬼（学芸員）が出現</b>。3分間見つからずに隠れ切れ！</p>
+        <p>完全に真っ白な棒人間を自由に塗りつぶして展示物に同化せよ！<br><br>
+        【操作方法】<br>
+        <b>[WASD]</b> 移動 | <b>[Space]</b> ジャンプ | <b>[Shift長押し]</b> 壁に貼り付く<br>
+        <b>[1, 2, 3 キー]</b> ポーズ切り替え | <b>[左ドラッグ]</b> 体に色塗り | <b>[右ドラッグ]</b> 視点回転<br><br>
+        スタート後<b>30秒で鬼が出現</b>。3分間見つからずに隠れ切れ！</p>
         <button class="start-btn" onclick="startGame()">GAME START</button>
     </div>
 
@@ -184,11 +194,17 @@
         <div class="guard-status" id="guard-status">鬼出現まで: 30秒</div>
     </div>
 
-    <!-- パレットUI（直接ペイント用） -->
+    <!-- パレット ＆ 筆サイズUI -->
     <div id="palette-bar">
-        <span style="font-size: 12px; color: #aaa;">体に塗る色:</span>
-        <div id="palette-colors" style="display: flex; gap: 8px;"></div>
-        <button style="padding: 4px 10px; font-size: 11px; background:#444; color:#fff; border:none; border-radius:6px; cursor:pointer;" onclick="resetPlayerColor()">色リセット</button>
+        <span style="font-size: 12px; color: #aaa;">色:</span>
+        <div id="palette-colors" style="display: flex; gap: 6px;"></div>
+        
+        <span style="font-size: 12px; color: #aaa; margin-left: 10px;">筆の太さ:</span>
+        <button class="brush-size-btn" onclick="setBrushSize(8, this)">小</button>
+        <button class="brush-size-btn active" onclick="setBrushSize(16, this)">中</button>
+        <button class="brush-size-btn" onclick="setBrushSize(32, this)">大</button>
+
+        <button style="padding: 4px 10px; font-size: 11px; background:#444; color:#fff; border:none; border-radius:6px; cursor:pointer; margin-left:10px;" onclick="resetPlayerColor()">白に戻す</button>
     </div>
 
     <!-- 同化度メーター -->
@@ -200,20 +216,16 @@
         <span id="stealth-text">0%</span>
     </div>
 
-    <!-- ポーズUI -->
-    <div id="controls-bar">
-        <span style="font-size: 12px; color: #aaa;">[WASD] 移動 / [ドラッグ] 視点移動 & 色塗り | ポーズ:</span>
-        <button class="pose-btn active" id="pose-0" onclick="setPose(0)">1. 直立</button>
-        <button class="pose-btn" id="pose-1" onclick="setPose(1)">2. 額縁 (T字)</button>
-        <button class="pose-btn" id="pose-2" onclick="setPose(2)">3. 彫刻 (思考者)</button>
-        <button class="pose-btn" id="pose-3" onclick="setPose(3)">4. シャキーン</button>
+    <!-- ガイドバー -->
+    <div id="guide-bar">
+        [WASD] 移動 | [Space] ジャンプ | [Shift] 壁貼り付き | [1, 2, 3] ポーズ変更
     </div>
 
     <!-- 結果表示画面 -->
     <div id="game-over-screen" class="modal-screen">
         <div class="modal-card">
             <h2 style="color: #e74c3c; font-size: 36px;">見つかった！！</h2>
-            <p style="margin-top: 10px; color:#aaa;">学芸員に偽物と見破られてしまいました...</p>
+            <p style="margin-top: 10px; color:#aaa;">学芸員に見破られてしまいました...</p>
             <button class="restart-btn" onclick="restartGame()">リトライ</button>
         </div>
     </div>
@@ -221,7 +233,7 @@
     <div id="clear-screen" class="modal-screen">
         <div class="modal-card">
             <h2 style="color: #2ecc71; font-size: 36px;">STAGE CLEAR! 🎉</h2>
-            <p style="margin-top: 10px; color:#aaa;">3分間完璧に隠れ切りました！最高のアート擬態です！</p>
+            <p style="margin-top: 10px; color:#aaa;">3分間完璧に隠れ切りました！勝利です！</p>
             <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
         </div>
     </div>
@@ -233,89 +245,97 @@
         let guard, flashlightCone;
         let isGameStarted = false, isGameOver = false, isClear = false;
 
-        // タイマー管理
-        let spawnCountdown = 30; // 鬼出現まで30秒
-        let surviveTime = 180;   // 3分間（180秒）耐える
+        // 物理・移動変数
+        let playerVelocityY = 0;
+        let isGrounded = false;
+        let isClingingToWall = false;
+        const GRAVITY = -0.015;
+        const JUMP_POWER = 0.35;
+
+        // タイマー
+        let spawnCountdown = 30;
+        let surviveTime = 180;
         let guardActive = false;
         let timerInterval = null;
 
-        // 色塗り・キャンバステクスチャ関連
+        // ペイント関連
         let canvasTex, texCanvas, texCtx;
         let currentColor = '#ff3366';
+        let currentBrushSize = 16;
         const paletteColors = ['#ffffff', '#ff3366', '#33aaff', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e', '#000000'];
 
-        // 三人称（TPS）カメラ制御
+        // TPSカメラ制御（感度を大幅に調整）
         let cameraAngleY = 0;
         let cameraAngleX = 0.3;
-        let isMouseDown = false;
+        let isRightMouseDown = false;
+        let isLeftMouseDown = false;
         let previousMouseX = 0, previousMouseY = 0;
 
-        // 入力 ＆ ポーズ ＆ 展示物
+        // 入力・ポーズ・ステージ情報
         const keys = {};
-        let currentPoseIndex = 0;
+        let currentPoseIndex = 1; // 1:直立, 2:T字, 3:彫刻
         const artExhibits = [];
+        const walls = []; // 壁判定用
 
-        // Raycaster (3Dモデルを直接クリックして色塗りする用)
         const raycaster = new THREE.Raycaster();
         const mouseVec = new THREE.Vector2();
 
         // --- 2. 初期化 ---
         function init() {
-            // シーン
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0c0d12);
-            scene.fog = new THREE.FogExp2(0x0c0d12, 0.015);
+            scene.background = new THREE.Color(0x0d0d11);
+            scene.fog = new THREE.FogExp2(0x0d0d11, 0.015);
 
-            // カメラ (TPS視点)
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-            // レンダラー
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 照明
-            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambient);
 
             const dirLight = new THREE.DirectionalLight(0xfff0dd, 0.8);
             dirLight.position.set(20, 40, 20);
             dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 2048;
-            dirLight.shadow.mapSize.height = 2048;
             scene.add(dirLight);
 
-            // 各種生成
             initTextureCanvas();
             createLargeMuseumStage();
             createStickmanPlayer();
             createGuard();
             initPaletteUI();
 
-            // イベント登録
+            // キーボードイベント
             window.addEventListener('keydown', e => {
                 keys[e.key.toLowerCase()] = true;
-                if(e.key === '1') setPose(0);
-                if(e.key === '2') setPose(1);
-                if(e.key === '3') setPose(2);
-                if(e.key === '4') setPose(3);
+                if (e.key === ' ') {
+                    if (isGrounded || isClingingToWall) {
+                        playerVelocityY = JUMP_POWER;
+                        isGrounded = false;
+                        isClingingToWall = false;
+                    }
+                }
+                if (e.key === '1') setPose(1);
+                if (e.key === '2') setPose(2);
+                if (e.key === '3') setPose(3);
             });
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-            // マウスによる3Dペイント ＆ 視点移動
+            // マウス操作（視点＆ペイント分離）
             const dom = renderer.domElement;
+            dom.addEventListener('contextmenu', e => e.preventDefault()); // 右クリックメニュー無効化
             dom.addEventListener('mousedown', onMouseDown);
             dom.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('mouseup', () => isMouseDown = false);
+            window.addEventListener('mouseup', onMouseUp);
             window.addEventListener('resize', onWindowResize);
 
-            // メインループスタート
             animate();
         }
 
-        // --- 3. 動的テクスチャ（直接お絵描き用） ---
+        // --- 3. 動的キャンバス（完全真っ白） ---
         function initTextureCanvas() {
             texCanvas = document.createElement('canvas');
             texCanvas.width = 256; texCanvas.height = 256;
@@ -328,19 +348,14 @@
 
         function resetPlayerColor() {
             texCtx.fillStyle = '#ffffff';
-            texCtx.fillRect(0, 0, 256, 256);
-            // 顔パーツ
-            texCtx.fillStyle = '#111';
-            texCtx.beginPath();
-            texCtx.arc(80, 80, 14, 0, Math.PI*2);
-            texCtx.arc(176, 80, 14, 0, Math.PI*2);
-            texCtx.fill();
-            texCtx.beginPath();
-            texCtx.arc(128, 140, 30, 0, Math.PI);
-            texCtx.lineWidth = 8;
-            texCtx.strokeStyle = '#111';
-            texCtx.stroke();
+            texCtx.fillRect(0, 0, 256, 256); // 完全な真っ白
             if (canvasTex) canvasTex.needsUpdate = true;
+        }
+
+        function setBrushSize(size, btn) {
+            currentBrushSize = size;
+            document.querySelectorAll('.brush-size-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         function initPaletteUI() {
@@ -358,28 +373,24 @@
             });
         }
 
-        // --- 4. 棒人間（プレイヤー）作成 ---
+        // --- 4. 完全真っ白な棒人間 ---
         function createStickmanPlayer() {
             player = new THREE.Group();
 
             const pMat = new THREE.MeshStandardMaterial({
                 map: canvasTex,
-                roughness: 0.3,
-                metalness: 0.1
+                roughness: 0.2,
+                metalness: 0.0
             });
 
-            // 頭
             headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), pMat);
             headMesh.position.y = 2.0;
             headMesh.castShadow = true;
-            headMesh.name = "paintable";
             player.add(headMesh);
 
-            // 胴体
             bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 1.2, 24), pMat);
             bodyMesh.position.y = 1.0;
             bodyMesh.castShadow = true;
-            bodyMesh.name = "paintable";
             player.add(bodyMesh);
 
             function createLimb() {
@@ -387,7 +398,6 @@
                 const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.9, 16), pMat);
                 m.position.y = -0.45;
                 m.castShadow = true;
-                m.name = "paintable";
                 g.add(m);
                 return g;
             }
@@ -399,59 +409,50 @@
 
             player.position.set(0, 0, 20);
             scene.add(player);
+
+            setPose(1); // 初期ポーズ
         }
 
-        // ポーズ設定
+        // 1, 2, 3 キーでのポーズ切り替え
         function setPose(idx) {
             if (isGameOver || isClear) return;
             currentPoseIndex = idx;
-            document.querySelectorAll('.pose-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
 
-            if (idx === 0) { // 通常
+            if (idx === 1) { // 1: 直立
                 armR.rotation.set(0, 0, -0.3); armL.rotation.set(0, 0, 0.3);
                 legR.rotation.set(0, 0, -0.05); legL.rotation.set(0, 0, 0.05);
-            } else if (idx === 1) { // T字
+            } else if (idx === 2) { // 2: 額縁ポーズ (T字)
                 armR.rotation.set(0, 0, -Math.PI/2); armL.rotation.set(0, 0, Math.PI/2);
                 legR.rotation.set(0,0,0); legL.rotation.set(0,0,0);
-            } else if (idx === 2) { // 思考者
+            } else if (idx === 3) { // 3: 彫刻ポーズ (思考者)
                 armR.rotation.set(1.2, -0.5, -0.4); armL.rotation.set(0.5, 0.2, 0.2);
                 legR.rotation.set(-0.8, 0, 0.2); legL.rotation.set(-0.4, 0, -0.2);
-            } else if (idx === 3) { // 星型
-                armR.rotation.set(0, 0, -2.3); armL.rotation.set(0, 0, 2.3);
-                legR.rotation.set(0, 0, -0.6); legL.rotation.set(0, 0, 0.6);
             }
         }
 
-        // --- 5. 巨大美術館ステージ構築 ---
+        // --- 5. ステージ生成 ---
         function createLargeMuseumStage() {
-            // 広大な床 (60x60)
             const floor = new THREE.Mesh(
                 new THREE.PlaneGeometry(60, 60),
-                new THREE.MeshStandardMaterial({ color: 0x221a15, roughness: 0.2, metalness: 0.1 })
+                new THREE.MeshStandardMaterial({ color: 0x221a15, roughness: 0.3 })
             );
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // 周囲の壁
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x1f2a38, roughness: 0.8 });
-            createWall(0, 6, -30, 60, 12, 1, wallMat);
-            createWall(-30, 6, 0, 1, 12, 60, wallMat);
-            createWall(30, 6, 0, 1, 12, 60, wallMat);
+            createWall(0, 8, -30, 60, 16, 1, wallMat);
+            createWall(-30, 8, 0, 1, 16, 60, wallMat);
+            createWall(30, 8, 0, 1, 16, 60, wallMat);
 
-            // 区切り壁（迷路風）
-            createWall(-10, 6, 0, 1, 12, 30, wallMat);
-            createWall(10, 6, -10, 1, 12, 30, wallMat);
+            // 内壁
+            createWall(-10, 8, 0, 1, 16, 30, wallMat);
+            createWall(10, 8, -10, 1, 16, 30, wallMat);
 
-            // --- リアルな絵画 ＆ 彫刻スポットの配置 ---
-            // 1. 赤グラデーション名画 (左エリア)
-            createRealisticArtFrame(-29.2, 5, 10, 6, 8, '#ff3366', 1, "赤の抽象名画");
-            // 2. 青の夜空名画 (中央奥壁)
-            createRealisticArtFrame(0, 5, -29.2, 8, 6, '#33aaff', 3, "青の夜空名画");
-            // 3. 黄色の黄金彫刻スポット (右エリア)
-            createStatueSpot(20, 0, 5, '#f1c40f', 2, "黄金の思考像");
-            // 4. 緑の森林絵画 (左奥)
-            createRealisticArtFrame(-20, 5, -29.2, 7, 5, '#2ecc71', 1, "緑の深林図");
+            // 展示物
+            createArtFrame(-29.2, 5, 10, 6, 8, '#ff3366', 2, "赤の絵画");
+            createArtFrame(0, 5, -29.2, 8, 6, '#33aaff', 2, "青の絵画");
+            createStatueSpot(20, 0, 5, '#f1c40f', 3, "黄金の思考像");
         }
 
         function createWall(x, y, z, w, h, d, mat) {
@@ -459,42 +460,20 @@
             mesh.position.set(x, y, z);
             mesh.receiveShadow = true; mesh.castShadow = true;
             scene.add(mesh);
+            walls.push(mesh);
         }
 
-        // リアルなキャンバス（模様付き絵画）を生成
-        function createRealisticArtFrame(x, y, z, w, h, mainColor, targetPoseIdx, name) {
+        function createArtFrame(x, y, z, w, h, mainColor, targetPoseIdx, name) {
             const group = new THREE.Group();
-
-            // 豪華な額縁
             const frame = new THREE.Mesh(
                 new THREE.BoxGeometry(w + 0.6, h + 0.6, 0.3),
-                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8, roughness: 0.3 })
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 })
             );
             group.add(frame);
 
-            // 動的模様キャンバスの作成
-            const artCanvas = document.createElement('canvas');
-            artCanvas.width = 256; artCanvas.height = 256;
-            const actx = artCanvas.getContext('2d');
-            
-            // グラデーションアート模様の描画
-            const grad = actx.createRadialGradient(128, 128, 10, 128, 128, 120);
-            grad.addColorStop(0, mainColor);
-            grad.addColorStop(1, '#111122');
-            actx.fillStyle = grad;
-            actx.fillRect(0, 0, 256, 256);
-
-            // 芸術的な模様
-            actx.strokeStyle = '#ffffff';
-            actx.lineWidth = 4;
-            actx.beginPath();
-            actx.arc(128, 128, 80, 0, Math.PI * 2);
-            actx.stroke();
-
-            const artTex = new THREE.CanvasTexture(artCanvas);
             const canvasMesh = new THREE.Mesh(
                 new THREE.PlaneGeometry(w, h),
-                new THREE.MeshStandardMaterial({ map: artTex, roughness: 0.4 })
+                new THREE.MeshStandardMaterial({ color: mainColor })
             );
             canvasMesh.position.z = 0.16;
             group.add(canvasMesh);
@@ -503,9 +482,8 @@
             if (x < -25) group.rotation.y = Math.PI / 2;
             scene.add(group);
 
-            // 擬態判定用データ
             artExhibits.push({
-                position: new THREE.Vector3(x + (x < -25 ? 1.8 : 0), 0, z + (z < -25 ? 1.8 : 0)),
+                position: new THREE.Vector3(x + (x < -25 ? 1.8 : 0), y - 3, z),
                 targetColorHex: mainColor,
                 requiredPose: targetPoseIdx,
                 name: name
@@ -515,7 +493,7 @@
         function createStatueSpot(x, y, z, mainColor, targetPoseIdx, name) {
             const ped = new THREE.Mesh(
                 new THREE.CylinderGeometry(2, 2.2, 1.2, 32),
-                new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.5 })
+                new THREE.MeshStandardMaterial({ color: 0x151515 })
             );
             ped.position.set(x, 0.6, z);
             scene.add(ped);
@@ -535,10 +513,8 @@
             });
         }
 
-        // --- 6. 鬼（学芸員）生成 ---
         function createGuard() {
             guard = new THREE.Group();
-
             const body = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.6, 0.6, 1.8, 16),
                 new THREE.MeshStandardMaterial({ color: 0x2c3e50 })
@@ -546,7 +522,6 @@
             body.position.y = 0.9;
             guard.add(body);
 
-            // 懐中電灯（ライトビーム）
             const coneGeo = new THREE.ConeGeometry(5, 16, 16, 1, true);
             coneGeo.rotateX(-Math.PI / 2);
             coneGeo.translate(0, 0, 8);
@@ -557,57 +532,70 @@
             guard.add(flashlightCone);
 
             guard.position.set(0, 0, -20);
-            guard.visible = false; // 最初は非表示（30秒後に登場）
+            guard.visible = false;
             scene.add(guard);
         }
 
-        // --- 7. マウスで3Dモデルへ直接ペイント ＆ カメラ操作 ---
+        // --- 6. マウス操作の完全修正（右：カメラ / 左：ペイント） ---
         function onMouseDown(e) {
             if (!isGameStarted || isGameOver || isClear) return;
-            isMouseDown = true;
             previousMouseX = e.clientX;
             previousMouseY = e.clientY;
 
-            // レイキャストで棒人間をクリックしたか判定
+            if (e.button === 2) { // 右クリックドラッグ -> 視点移動
+                isRightMouseDown = true;
+            } else if (e.button === 0) { // 左クリック -> 直接ペイント
+                isLeftMouseDown = true;
+                paintOnPlayer(e);
+            }
+        }
+
+        function onMouseMove(e) {
+            if (isRightMouseDown) {
+                const deltaX = e.clientX - previousMouseX;
+                const deltaY = e.clientY - previousMouseY;
+
+                // 適切な感度に調整
+                cameraAngleY -= deltaX * 0.003;
+                cameraAngleX = Math.max(0.05, Math.min(1.2, cameraAngleX + deltaY * 0.003));
+
+                previousMouseX = e.clientX;
+                previousMouseY = e.clientY;
+            } else if (isLeftMouseDown) {
+                paintOnPlayer(e);
+            }
+        }
+
+        function onMouseUp(e) {
+            if (e.button === 2) isRightMouseDown = false;
+            if (e.button === 0) isLeftMouseDown = false;
+        }
+
+        function paintOnPlayer(e) {
             mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouseVec, camera);
 
             const intersects = raycaster.intersectObjects(player.children, true);
             if (intersects.length > 0) {
-                // 直接体にペイント！
                 const uv = intersects[0].uv;
                 if (uv) {
                     const x = uv.x * 256;
                     const y = (1 - uv.y) * 256;
                     texCtx.fillStyle = currentColor;
                     texCtx.beginPath();
-                    texCtx.arc(x, y, 16, 0, Math.PI * 2);
+                    texCtx.arc(x, y, currentBrushSize, 0, Math.PI * 2);
                     texCtx.fill();
                     canvasTex.needsUpdate = true;
                 }
             }
         }
 
-        function onMouseMove(e) {
-            if (!isMouseDown) return;
-            const deltaX = e.clientX - previousMouseX;
-            const deltaY = e.clientY - previousMouseY;
-
-            // 右ドラッグ/通常ドラッグでカメラ視点回転
-            cameraAngleY -= deltaX * 0.005;
-            cameraAngleX = Math.max(0.1, Math.min(1.2, cameraAngleX + deltaY * 0.005));
-
-            previousMouseX = e.clientX;
-            previousMouseY = e.clientY;
-        }
-
-        // --- 8. ゲーム開始・タイマー処理 ---
+        // --- 7. メイン処理 & 物理計算 ---
         function startGame() {
             document.getElementById('title-screen').style.display = 'none';
             isGameStarted = true;
 
-            // カウントダウン開始
             timerInterval = setInterval(() => {
                 if (!isGameStarted || isGameOver || isClear) return;
 
@@ -625,19 +613,16 @@
                     const secs = (surviveTime % 60).toString().padStart(2, '0');
                     document.getElementById('timer-display').innerText = `${mins}:${secs}`;
 
-                    if (surviveTime <= 0) {
-                        gameClear();
-                    }
+                    if (surviveTime <= 0) gameClear();
                 }
             }, 1000);
         }
 
-        // --- 9. メインゲームループ ---
         function animate() {
             requestAnimationFrame(animate);
 
             if (isGameStarted && !isGameOver && !isClear) {
-                updatePlayerMovement();
+                updatePhysicsAndMovement();
                 updateTPSCamera();
                 if (guardActive) updateGuardPatrol();
                 checkStealthAndDetection();
@@ -646,9 +631,9 @@
             renderer.render(scene, camera);
         }
 
-        // プレイヤー移動（TPS視点基準）
-        function updatePlayerMovement() {
-            const speed = 0.16;
+        // 移動・重力・壁貼り付き処理
+        function updatePhysicsAndMovement() {
+            const speed = 0.15;
             let moveX = 0, moveZ = 0;
 
             if (keys['w'] || keys['arrowup']) moveZ -= speed;
@@ -656,8 +641,37 @@
             if (keys['a'] || keys['arrowleft']) moveX -= speed;
             if (keys['d'] || keys['arrowright']) moveX += speed;
 
+            // 壁との近接判定（壁貼り付き用）
+            let nearWall = false;
+            walls.forEach(w => {
+                const box = new THREE.Box3().setFromObject(w);
+                const playerBox = new THREE.Box3().setFromObject(player);
+                playerBox.expandByScalar(0.3);
+                if (box.intersectsBox(playerBox)) nearWall = true;
+            });
+
+            // Shiftキーで壁貼り付き
+            if (keys['shift'] && nearWall) {
+                isClingingToWall = true;
+                playerVelocityY = 0; // 空中で停止
+            } else {
+                isClingingToWall = false;
+            }
+
+            // 重力計算
+            if (!isGrounded && !isClingingToWall) {
+                playerVelocityY += GRAVITY;
+                player.position.y += playerVelocityY;
+
+                if (player.position.y <= 0) {
+                    player.position.y = 0;
+                    playerVelocityY = 0;
+                    isGrounded = true;
+                }
+            }
+
+            // 移動計算
             if (moveX !== 0 || moveZ !== 0) {
-                // カメラの向きに合わせて移動方向を計算
                 const angle = cameraAngleY;
                 const rx = moveX * Math.cos(angle) - moveZ * Math.sin(angle);
                 const rz = moveX * Math.sin(angle) + moveZ * Math.cos(angle);
@@ -672,16 +686,14 @@
             player.position.z = Math.max(-28, Math.min(28, player.position.z));
         }
 
-        // 三人称（TPS）カメラ追従
         function updateTPSCamera() {
-            const dist = 9;
+            const dist = 8;
             camera.position.x = player.position.x + dist * Math.sin(cameraAngleY) * Math.cos(cameraAngleX);
             camera.position.y = player.position.y + dist * Math.sin(cameraAngleX) + 1.5;
             camera.position.z = player.position.z + dist * Math.cos(cameraAngleY) * Math.cos(cameraAngleX);
-            camera.lookAt(player.position.x, player.position.y + 1.5, player.position.z);
+            camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
         }
 
-        // 鬼の巡回パターン
         function updateGuardPatrol() {
             const t = Date.now() * 0.0008;
             guard.position.x = Math.sin(t) * 18;
@@ -689,52 +701,37 @@
             guard.rotation.y = t * 1.5;
         }
 
-        // 擬態 ＆ 発見チェック
         function checkStealthAndDetection() {
             let bestStealthScore = 0;
 
             artExhibits.forEach(exhibit => {
                 const dist = player.position.distanceTo(exhibit.position);
-                if (dist < 3.5) { // 展示スポット内
+                if (dist < 3.5) {
                     let score = 0;
 
-                    // ポーズ一致
                     if (currentPoseIndex === exhibit.requiredPose) score += 50;
 
-                    // 体の色の一致度を検証（テクスチャの中心色）
                     const pData = texCtx.getImageData(128, 128, 1, 1).data;
                     const rgbHex = '#' + ((1 << 24) + (pData[0] << 16) + (pData[1] << 8) + pData[2]).toString(16).slice(1);
                     
-                    if (isSimilarColor(rgbHex, exhibit.targetColorHex)) {
-                        score += 50;
-                    }
+                    if (rgbHex.toLowerCase() === exhibit.targetColorHex.toLowerCase()) score += 50;
 
                     if (score > bestStealthScore) bestStealthScore = score;
                 }
             });
 
-            // UI更新
             document.getElementById('meter-bar-fill').style.width = bestStealthScore + '%';
             document.getElementById('stealth-text').innerText = bestStealthScore + '%';
 
-            // 鬼の視線判定
             if (guardActive) {
                 const diff = new THREE.Vector3().subVectors(player.position, guard.position);
                 if (diff.length() < 14) {
                     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(guard.quaternion);
                     if (forward.angleTo(diff.normalize()) < 0.5) {
-                        // 照らされていて同化度80%未満ならアウト！
-                        if (bestStealthScore < 80) {
-                            gameOver();
-                        }
+                        if (bestStealthScore < 80) gameOver();
                     }
                 }
             }
-        }
-
-        function isSimilarColor(c1, c2) {
-            // 簡易色比較
-            return c1.toLowerCase() === c2.toLowerCase();
         }
 
         function gameOver() {
