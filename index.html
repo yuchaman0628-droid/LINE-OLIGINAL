@@ -1,174 +1,280 @@
-<!DOCTYPE html>
+html_content = """<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>めっちゃカメレオン 3D Remake</title>
+    <title>めっちゃカメレオン 3D - 美術館編</title>
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            margin: 0;
             overflow: hidden;
-            background-color: #0b0c10;
-            font-family: 'Segoe UI', 'メイリオ', sans-serif;
+            background-color: #1a1a1a;
+            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
             user-select: none;
+            color: #fff;
         }
-        #canvas-container { width: 100vw; height: 100vh; }
-        
-        /* UIデザイン */
-        #ui {
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Top HUD */
+        #hud {
             position: absolute;
-            top: 20px; left: 20px;
-            color: #ffffff;
-            background: rgba(15, 15, 25, 0.75);
-            padding: 15px 20px;
+            top: 15px; left: 15px;
+            background: rgba(20, 20, 30, 0.85);
+            padding: 12px 20px;
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
             backdrop-filter: blur(8px);
             pointer-events: none;
+            z-index: 10;
         }
-        h1 { margin: 0 0 8px 0; font-size: 22px; color: #66fcf1; }
-        p { margin: 4px 0; font-size: 13px; color: #c5c6c7; }
-        .highlight { color: #45f3ff; font-weight: bold; }
+        #hud h1 { font-size: 20px; color: #f39c12; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
+        #hud p { font-size: 13px; color: #ccc; margin-top: 2px; }
 
-        /* コントロールバー */
-        .controls-bar {
+        /* Left Sidebar: Paint Canvas UI */
+        #paint-panel {
             position: absolute;
-            bottom: 25px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 15, 25, 0.85);
-            padding: 12px 25px;
-            border-radius: 40px;
+            top: 15px; right: 15px;
+            background: rgba(25, 25, 35, 0.9);
+            padding: 15px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex;
-            gap: 20px;
+            flex-direction: column;
             align-items: center;
-            color: white;
-            border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            gap: 10px;
+            z-index: 10;
         }
-        .color-selector {
-            display: flex;
-            gap: 12px;
+        #paint-panel h3 { font-size: 14px; color: #41b883; text-align: center; }
+        #texture-canvas {
+            border: 2px solid #555;
+            border-radius: 8px;
+            background-color: #ffffff;
+            cursor: crosshair;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
-        .color-btn {
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.4);
-            cursor: pointer;
+        .palette {
             display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            width: 180px;
             justify-content: center;
+        }
+        .color-swatch {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .color-swatch:hover { transform: scale(1.2); }
+        .color-swatch.selected { border-color: #f39c12; transform: scale(1.25); box-shadow: 0 0 8px #f39c12; }
+        
+        .paint-tools {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            justify-content: space-between;
+        }
+        .tool-btn {
+            padding: 5px 10px;
+            font-size: 11px;
+            border: none;
+            background: #444;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .tool-btn:hover { background: #666; }
+        .tool-btn.active { background: #f39c12; color: #000; font-weight: bold; }
+
+        /* Bottom Control Bar: Poses & Actions */
+        #controls-bar {
+            position: absolute;
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 30, 0.9);
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 15px;
             align-items: center;
-            font-weight: bold;
-            font-size: 16px;
+            z-index: 10;
+        }
+        .pose-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #777;
+            background: #2a2a3a;
             color: white;
-            text-shadow: 1px 1px 3px black;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
             transition: all 0.2s ease;
         }
-        .color-btn:hover { transform: scale(1.1); }
-        .color-btn.active {
-            border-color: #ffffff;
-            box-shadow: 0 0 15px currentColor;
-            transform: scale(1.15);
-        }
-        #btn-red { background: #ff3366; color: #ff3366; }
-        #btn-green { background: #33ff77; color: #33ff77; }
-        #btn-blue { background: #33aaff; color: #33aaff; }
-        .btn-text { color: white; }
+        .pose-btn:hover { background: #3a3a5a; border-color: #aaa; }
+        .pose-btn.active { background: #f39c12; color: #111; border-color: #fff; box-shadow: 0 0 10px rgba(243,156,18,0.5); }
 
-        /* リザルト画面 */
-        .screen {
+        /* Overlay Screens */
+        .modal-screen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 10, 0.9);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
+            z-index: 100;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.4s ease;
         }
-        .screen.active {
+        .modal-screen.active {
             opacity: 1;
             pointer-events: auto;
         }
-        .screen h2 { font-size: 48px; margin: 0 0 10px 0; }
-        .screen p { font-size: 18px; color: #aaa; margin-bottom: 25px; }
-        .btn-action {
-            padding: 14px 35px;
-            font-size: 18px; font-weight: bold;
-            background: #45f3ff; color: #0b0c10;
-            border: none; border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(69,243,255,0.4);
-            transition: all 0.2s;
+        .modal-card {
+            background: #222;
+            padding: 30px 40px;
+            border-radius: 20px;
+            border: 2px solid #444;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
         }
-        .btn-action:hover { background: #66fcf1; transform: scale(1.05); }
+        .modal-card h2 { font-size: 32px; margin-bottom: 10px; }
+        .modal-card p { font-size: 15px; color: #bbb; margin-bottom: 25px; line-height: 1.5; }
+        .restart-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            background: #f39c12;
+            color: #111;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .restart-btn:hover { transform: scale(1.05); background: #ffb733; }
+
+        #stealth-meter {
+            position: absolute;
+            bottom: 85px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 6px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+        }
+        #meter-bar-bg {
+            width: 120px; height: 10px;
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #meter-bar-fill {
+            width: 0%; height: 100%;
+            background: #e74c3c;
+            transition: width 0.2s, background 0.2s;
+        }
     </style>
-    <!-- Three.js (3Dライブラリ) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
-    <div id="ui">
-        <h1>🦎 めっちゃカメレオン 3D</h1>
-        <p><span class="highlight">[WASD / 矢印]</span> : 移動</p>
-        <p><span class="highlight">[1, 2, 3 キー]</span> : 体の色を変更</p>
-        <p><b>ミッション:</b> 鬼の視線を壁と同化してやり過ごせ！</p>
+    <div id="hud">
+        <h1>🖼️ めっちゃカメレオン - 美術館編</h1>
+        <p><b>[WASD / 矢印]</b> : 棒人間を移動</p>
+        <p><b>[1, 2, 3, 4]</b> : ポーズ変更</p>
+        <p>絵画や台座の前で「ポーズ」と「お絵描き」をして学芸員（鬼）の目を誤魔化せ！</p>
     </div>
 
-    <div class="controls-bar">
-        <span style="font-size: 14px; color: #aaa;">保護色切り替え:</span>
-        <div class="color-selector">
-            <div class="color-btn" id="btn-red" onclick="setColor('red')"><span class="btn-text">1</span></div>
-            <div class="color-btn active" id="btn-green" onclick="setColor('green')"><span class="btn-text">2</span></div>
-            <div class="color-btn" id="btn-blue" onclick="setColor('blue')"><span class="btn-text">3</span></div>
+    <!-- お絵描きパネル -->
+    <div id="paint-panel">
+        <h3>🎨 カメレオンの体に自由に色塗り</h3>
+        <canvas id="texture-canvas" width="180" height="180"></canvas>
+        <div class="palette" id="palette"></div>
+        <div class="paint-tools">
+            <button class="tool-btn active" id="btn-brush" onclick="setTool('brush')">筆</button>
+            <button class="tool-btn" id="btn-fill" onclick="fillCanvas()">全体塗り</button>
+            <button class="tool-btn" id="btn-clear" onclick="clearCanvas()">リセット</button>
         </div>
     </div>
 
-    <!-- ゲームオーバー画面 -->
-    <div id="game-over-screen" class="screen">
-        <h2 style="color: #ff3366;">見つかった！！</h2>
-        <p>色の選択が違ったか、壁から離れすぎていました...</p>
-        <button class="btn-action" onclick="resetGame()">リトライ</button>
+    <!-- ポーズ切り替えバー -->
+    <div id="stealth-meter">
+        <span>同化度 / 擬態度:</span>
+        <div id="meter-bar-bg"><div id="meter-bar-fill"></div></div>
+        <span id="stealth-text">0%</span>
     </div>
 
-    <!-- クリア画面 -->
-    <div id="clear-screen" class="screen">
-        <h2 style="color: #33ff77;">ステージクリア！ 🎉</h2>
-        <p>見事な擬態テクニックで脱出に成功しました！</p>
-        <button class="btn-action" onclick="resetGame()">もう一度プレイ</button>
+    <div id="controls-bar">
+        <span style="font-size: 13px; color: #aaa;">ポーズ:</span>
+        <button class="pose-btn active" id="pose-0" onclick="setPose(0)">1. 通常</button>
+        <button class="pose-btn" id="pose-1" onclick="setPose(1)">2. 額縁ポーズ (T字)</button>
+        <button class="pose-btn" id="pose-2" onclick="setPose(2)">3. 彫刻ポーズ (思考者)</button>
+        <button class="pose-btn" id="pose-3" onclick="setPose(3)">4. シャキーン (星型)</button>
+    </div>
+
+    <!-- 結果モーダル -->
+    <div id="game-over-screen" class="modal-screen">
+        <div class="modal-card">
+            <h2 style="color: #e74c3c;">見つかった！！</h2>
+            <p>学芸員に偽物と見破られてしまいました...<br>絵画や彫刻と同じ色・ポーズで同化しましょう！</p>
+            <button class="restart-btn" onclick="resetGame()">やり直す</button>
+        </div>
+    </div>
+
+    <div id="clear-screen" class="modal-screen">
+        <div class="modal-card">
+            <h2 style="color: #2ecc71;">CLEAR!! 🎉</h2>
+            <p>完璧なポーズとアートペイント！<br>学芸員を完全にあざむいてゴールに到達しました！</p>
+            <button class="restart-btn" onclick="resetGame()">もう一度遊ぶ</button>
+        </div>
     </div>
 
     <script>
-        // --- 設定値 & 変数 ---
+        // --- 1. Three.js グローバル設定 ---
         let scene, camera, renderer;
-        let player, playerBodyMesh, eyeR, eyeL;
-        let enemies = [];
+        let player, playerBody, headMesh, armL, armR, legL, legR;
+        let guard, flashlightCone;
         let goal;
         let isGameOver = false, isClear = false;
 
-        const COLOR_MAP = {
-            red: 0xff3366,
-            green: 0x33ff77,
-            blue: 0x33aaff
-        };
-        let currentColor = 'green';
-        const keys = {};
-        const colorZones = [];
+        // ペイントテクスチャ関連
+        let texCanvas, texCtx, canvasTexture;
+        let currentColor = '#e74c3c';
+        const paletteColors = ['#ffffff', '#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e', '#e67e22', '#000000'];
 
+        // 入力＆進行
+        const keys = {};
+        let currentPoseIndex = 0;
+        const artExhibits = []; // 擬態可能な壁画・彫刻スポット
+
+        // --- 2. 初期化 ---
         function init() {
             // シーン
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a12);
-            scene.fog = new THREE.FogExp2(0x0a0a12, 0.025);
+            scene.background = new THREE.Color(0x12121a);
+            scene.fog = new THREE.FogExp2(0x12121a, 0.02);
 
-            // カメラ（俯瞰クォータービュー）
-            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 22, 16);
+            // カメラ
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 18, 18);
             camera.lookAt(0, 0, 0);
 
             // レンダラー
@@ -178,302 +284,534 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // 照明
-            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            // 照明（美術館風スポットライト＋環境光）
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambient);
 
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-            sun.position.set(10, 25, 10);
-            sun.castShadow = true;
-            sun.shadow.mapSize.width = 2048;
-            sun.shadow.mapSize.height = 2048;
-            scene.add(sun);
+            const mainLight = new THREE.DirectionalLight(0xfff5e6, 0.7);
+            mainLight.position.set(10, 25, 10);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            scene.add(mainLight);
 
-            // ステージ＆オブジェクト作成
-            createStage();
-            createPlayer();
-            
-            // 敵の配置（2体追加）
-            createEnemy(-6, 2, 2, 8);   // 左エリアを巡回
-            createEnemy(6, 2, -6, -8);  // 右エリアを巡回
+            // テクスチャキャンバス初期化
+            initPaintCanvas();
 
-            // イベント登録
+            // ステージ＆キャラ構築
+            createMuseumStage();
+            createStickmanPlayer();
+            createMuseumGuard();
+
+            // イベント
             window.addEventListener('keydown', e => {
                 keys[e.key.toLowerCase()] = true;
-                if(e.key === '1') setColor('red');
-                if(e.key === '2') setColor('green');
-                if(e.key === '3') setColor('blue');
+                if(e.key === '1') setPose(0);
+                if(e.key === '2') setPose(1);
+                if(e.key === '3') setPose(2);
+                if(e.key === '4') setPose(3);
             });
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             window.addEventListener('resize', onWindowResize);
 
-            // アニメーション開始
+            // メインループ
             animate();
         }
 
-        // --- ステージ作成 ---
-        function createStage() {
-            // 床
-            const floorGeo = new THREE.PlaneGeometry(36, 46);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x181824, roughness: 0.9 });
+        // --- 3. ペイントキャンバス機能 ---
+        function initPaintCanvas() {
+            texCanvas = document.getElementById('texture-canvas');
+            texCtx = texCanvas.getContext('2d');
+
+            // キャンバス初期描画（ベースは白＋かわいい顔）
+            clearCanvas();
+
+            // Three.js用キャンバステクスチャ作成
+            canvasTexture = new THREE.CanvasTexture(texCanvas);
+            canvasTexture.needsUpdate = true;
+
+            // パレットボタンの生成
+            const paletteEl = document.getElementById('palette');
+            paletteColors.forEach((color, idx) => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch' + (idx === 1 ? ' selected' : '');
+                swatch.style.backgroundColor = color;
+                swatch.addEventListener('click', () => {
+                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+                    swatch.classList.add('selected');
+                    currentColor = color;
+                });
+                paletteEl.appendChild(swatch);
+            });
+
+            // キャンバスマウスドラッグでお絵描き
+            let isDrawing = false;
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const rect = texCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                texCtx.fillStyle = currentColor;
+                texCtx.beginPath();
+                texCtx.arc(x, y, 8, 0, Math.PI * 2);
+                texCtx.fill();
+
+                canvasTexture.needsUpdate = true;
+            };
+
+            texCanvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
+            texCanvas.addEventListener('mousemove', draw);
+            window.addEventListener('mouseup', () => { isDrawing = false; });
+
+            // タッチ対応
+            texCanvas.addEventListener('touchmove', (e) => {
+                if(e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    const rect = texCanvas.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    texCtx.fillStyle = currentColor;
+                    texCtx.beginPath();
+                    texCtx.arc(x, y, 8, 0, Math.PI * 2);
+                    texCtx.fill();
+                    canvasTexture.needsUpdate = true;
+                }
+            });
+        }
+
+        function clearCanvas() {
+            texCtx.fillStyle = '#ffffff';
+            texCtx.fillRect(0, 0, texCanvas.width, texCanvas.height);
+            
+            // 丸っこい棒人間の顔パーツを描く
+            texCtx.fillStyle = '#111111';
+            texCtx.beginPath();
+            texCtx.arc(60, 60, 10, 0, Math.PI*2); // 左目
+            texCtx.arc(120, 60, 10, 0, Math.PI*2); // 右目
+            texCtx.fill();
+
+            texCtx.beginPath();
+            texCtx.arc(90, 100, 20, 0, Math.PI); // にっこり口
+            texCtx.lineWidth = 6;
+            texCtx.strokeStyle = '#111111';
+            texCtx.stroke();
+
+            if (canvasTexture) canvasTexture.needsUpdate = true;
+        }
+
+        function fillCanvas() {
+            texCtx.fillStyle = currentColor;
+            texCtx.fillRect(0, 0, texCanvas.width, texCanvas.height);
+            canvasTexture.needsUpdate = true;
+        }
+
+        // --- 4. 丸っこい棒人間（プレイヤー）構築 ---
+        function createStickmanPlayer() {
+            player = new THREE.Group();
+
+            // ペイントテクスチャを適用するマテリアル
+            const paintMaterial = new THREE.MeshStandardMaterial({
+                map: canvasTexture,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+
+            // 1. 頭部（大きな丸頭）
+            const headGeo = new THREE.SphereGeometry(0.8, 32, 32);
+            headMesh = new THREE.Mesh(headGeo, paintMaterial);
+            headMesh.position.y = 2.0;
+            headMesh.castShadow = true;
+            player.add(headMesh);
+
+            // 2. 胴体（カプセル型 / 丸っこい胴）
+            const bodyGeo = new THREE.CylinderGeometry(0.4, 0.35, 1.2, 24);
+            playerBody = new THREE.Mesh(bodyGeo, paintMaterial);
+            playerBody.position.y = 1.0;
+            playerBody.castShadow = true;
+            player.add(playerBody);
+
+            // 関節グループ作成ヘルパー
+            function createLimb() {
+                const group = new THREE.Group();
+                const mesh = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.12, 0.1, 0.9, 16),
+                    paintMaterial
+                );
+                mesh.position.y = -0.45; // 回転軸を上端にする
+                mesh.castShadow = true;
+                group.add(mesh);
+                return group;
+            }
+
+            // 右腕
+            armR = createLimb();
+            armR.position.set(0.5, 1.4, 0);
+            player.add(armR);
+
+            // 左腕
+            armL = createLimb();
+            armL.position.set(-0.5, 1.4, 0);
+            player.add(armL);
+
+            // 右脚
+            legR = createLimb();
+            legR.position.set(0.25, 0.45, 0);
+            player.add(legR);
+
+            // 左脚
+            legL = createLimb();
+            legL.position.set(-0.25, 0.45, 0);
+            player.add(legL);
+
+            player.position.set(0, 0, 14);
+            scene.add(player);
+        }
+
+        // ポーズ設定
+        function setPose(index) {
+            if (isGameOver || isClear) return;
+            currentPoseIndex = index;
+
+            document.querySelectorAll('.pose-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+
+            // ポーズごとの関節角度設定（ラジアン）
+            if (index === 0) { // 通常立ち
+                armR.rotation.set(0, 0, -0.3);
+                armL.rotation.set(0, 0, 0.3);
+                legR.rotation.set(0, 0, -0.05);
+                legL.rotation.set(0, 0, 0.05);
+                headMesh.rotation.set(0, 0, 0);
+            } else if (index === 1) { // 額縁 T字ポーズ（壁画同化用）
+                armR.rotation.set(0, 0, -Math.PI / 2);
+                armL.rotation.set(0, 0, Math.PI / 2);
+                legR.rotation.set(0, 0, 0);
+                legL.rotation.set(0, 0, 0);
+                headMesh.rotation.set(0, 0, 0);
+            } else if (index === 2) { // 思考者ポーズ（彫刻同化用）
+                armR.rotation.set(1.2, -0.5, -0.4);
+                armL.rotation.set(0.5, 0.2, 0.2);
+                legR.rotation.set(-0.8, 0, 0.2);
+                legL.rotation.set(-0.4, 0, -0.2);
+                headMesh.rotation.set(0.4, 0.3, 0);
+            } else if (index === 3) { // 星型ポーズ（抽象画同化用）
+                armR.rotation.set(0, 0, -2.3);
+                armL.rotation.set(0, 0, 2.3);
+                legR.rotation.set(0, 0, -0.6);
+                legL.rotation.set(0, 0, 0.6);
+                headMesh.rotation.set(-0.2, 0, 0);
+            }
+        }
+
+        // --- 5. 美術館ステージ構築 ---
+        function createMuseumStage() {
+            // 床（高級感のある木目調風）
+            const floorGeo = new THREE.PlaneGeometry(32, 40);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.3, metalness: 0.1 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // グリッド線模様（オシャレ感演出）
-            const grid = new THREE.GridHelper(40, 20, 0x333355, 0x222233);
-            grid.position.y = 0.01;
-            scene.add(grid);
+            // 壁（美術館のシックな壁）
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.8 });
+            
+            // 奥の壁
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(32, 8, 1), wallMat);
+            backWall.position.set(0, 4, -19.5);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
 
-            // 赤い壁エリア（左側）
-            createWallGroup(-9, 2, 5, 5, 4, 10, 'red');
-            // 緑の壁エリア（中央奥）
-            createWallGroup(0, 2, -3, 10, 4, 5, 'green');
-            // 青い壁エリア（右側）
-            createWallGroup(9, 2, 2, 5, 4, 12, 'blue');
+            // 左の壁
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 40), wallMat);
+            leftWall.position.set(-15.5, 4, 0);
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
 
-            // ゴールポータル
-            const goalGeo = new THREE.TorusGeometry(2, 0.2, 16, 32);
-            const goalMat = new THREE.MeshBasicMaterial({ color: 0x45f3ff, wireframe: true });
+            // 右の壁
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 40), wallMat);
+            rightWall.position.set(15.5, 4, 0);
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+
+            // --- 壁画・彫刻展示スポットの作成 ---
+            // 展示スポット1: 左壁（赤メインの額縁絵画）
+            createArtFrame(-14.8, 4, 5, 4, 5, 0xff3366, 1, "赤の額縁絵画");
+
+            // 展示スポット2: 奥壁（青メインの抽象画）
+            createArtFrame(0, 4, -18.8, 6, 4, 0x3498db, 3, "青の抽象画");
+
+            // 展示スポット3: 右壁前（黄色い彫刻台座）
+            createStatuePedestal(12, 0, -2, 0xf1c40f, 2, "黄色の台座彫刻");
+
+            // ゴール展示物（ゴール地点）
+            const goalGeo = new THREE.TorusKnotGeometry(1, 0.3, 64, 16);
+            const goalMat = new THREE.MeshStandardMaterial({ color: 0xf39c12, metalness: 0.8, roughness: 0.2 });
             goal = new THREE.Mesh(goalGeo, goalMat);
-            goal.rotation.x = Math.PI / 2;
-            goal.position.set(0, 0.2, -18);
+            goal.position.set(0, 2.5, -15);
+            goal.castShadow = true;
             scene.add(goal);
+
+            // ゴール用の台座
+            const goalBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.8, 2, 1, 32),
+                new THREE.MeshStandardMaterial({ color: 0x111111 })
+            );
+            goalBase.position.set(0, 0.5, -15);
+            scene.add(goalBase);
         }
 
-        function createWallGroup(x, y, z, w, h, d, colorKey) {
-            const geo = new THREE.BoxGeometry(w, h, d);
-            const mat = new THREE.MeshStandardMaterial({
-                color: COLOR_MAP[colorKey],
-                roughness: 0.4,
-                metalness: 0.1
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, y, z);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
+        // 額縁絵画スポット生成
+        function createArtFrame(x, y, z, w, h, colorHex, targetPoseIdx, name) {
+            const frameGroup = new THREE.Group();
 
-            colorZones.push({
-                bounds: new THREE.Box3().setFromObject(mesh),
-                color: colorKey
+            // 金色の枠
+            const frameMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(w + 0.4, h + 0.4, 0.2),
+                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 })
+            );
+            frameGroup.add(frameMesh);
+
+            // 絵画キャンバス
+            const canvasMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, h),
+                new THREE.MeshStandardMaterial({ color: colorHex })
+            );
+            canvasMesh.position.z = 0.11;
+            frameGroup.add(canvasMesh);
+
+            frameGroup.position.set(x, y, z);
+            if (x < 0) frameGroup.rotation.y = Math.PI / 2;
+            scene.add(frameGroup);
+
+            // スポット照明
+            const spot = new THREE.SpotLight(0xfff0dd, 1.5, 12, 0.5);
+            spot.position.set(x * 0.8, y + 3, z + (x < 0 ? 3 : -3));
+            spot.target = frameMesh;
+            scene.add(spot);
+
+            // 擬態判定ポイントとして追加
+            artExhibits.push({
+                position: new THREE.Vector3(x + (x < 0 ? 1.5 : 0), 0, z),
+                colorHex: colorHex,
+                requiredPose: targetPoseIdx,
+                name: name
             });
         }
 
-        // --- プレイヤー（カメレオン）作成 ---
-        function createPlayer() {
-            player = new THREE.Group();
+        // 彫刻台座スポット生成
+        function createStatuePedestal(x, y, z, colorHex, targetPoseIdx, name) {
+            const pedestal = new THREE.Mesh(
+                new THREE.BoxGeometry(2.5, 1.2, 2.5),
+                new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 })
+            );
+            pedestal.position.set(x, 0.6, z);
+            pedestal.castShadow = true;
+            pedestal.receiveShadow = true;
+            scene.add(pedestal);
 
-            // 胴体
-            const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16);
-            bodyGeo.scale(0.9, 0.7, 1.4);
-            const bodyMat = new THREE.MeshStandardMaterial({
-                color: COLOR_MAP[currentColor],
-                roughness: 0.2,
-                transparent: true,
-                opacity: 1.0
+            // 背景パネル
+            const bgPanel = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 6, 4),
+                new THREE.MeshStandardMaterial({ color: colorHex })
+            );
+            bgPanel.position.set(x + 1.2, 3, z);
+            scene.add(bgPanel);
+
+            artExhibits.push({
+                position: new THREE.Vector3(x, 0, z),
+                colorHex: colorHex,
+                requiredPose: targetPoseIdx,
+                name: name
             });
-            playerBodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-            playerBodyMesh.castShadow = true;
-            player.add(playerBodyMesh);
-
-            // 目
-            const eyeGeo = new THREE.SphereGeometry(0.25, 12, 12);
-            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-
-            // 右目
-            eyeR = new THREE.Group();
-            const eR = new THREE.Mesh(eyeGeo, eyeMat);
-            const pR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
-            pR.position.set(0.1, 0, 0.18);
-            eyeR.add(eR, pR);
-            eyeR.position.set(0.5, 0.3, 0.6);
-            player.add(eyeR);
-
-            // 左目
-            eyeL = new THREE.Group();
-            const eL = new THREE.Mesh(eyeGeo, eyeMat);
-            const pL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
-            pL.position.set(-0.1, 0, 0.18);
-            eyeL.add(eL, pL);
-            eyeL.position.set(-0.5, 0.3, 0.6);
-            player.add(eyeL);
-
-            player.position.set(0, 0.6, 18);
-            scene.add(player);
         }
 
-        // --- 敵（見張りドローン）作成 ---
-        function createEnemy(startX, y, startZ, moveRangeZ) {
-            const enemyGroup = new THREE.Group();
+        // --- 6. 学芸員（見張り鬼）＆ライトビーム ---
+        function createMuseumGuard() {
+            guard = new THREE.Group();
 
-            // 本体ドローン
-            const bodyGeo = new THREE.IcosahedronGeometry(1.2, 1);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.9, roughness: 0.2 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            // 体
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.5, 1.6, 16),
+                new THREE.MeshStandardMaterial({ color: 0x2c3e50 })
+            );
+            body.position.y = 0.8;
             body.castShadow = true;
-            enemyGroup.add(body);
+            guard.add(body);
 
-            // 赤いセンサーアイ
-            const eyeGeo = new THREE.SphereGeometry(0.4, 16, 16);
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
-            const eye = new THREE.Mesh(eyeGeo, eyeMat);
-            eye.position.set(0, 0, 0.8);
-            enemyGroup.add(eye);
+            // 頭（警備帽付き）
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffdbac })
+            );
+            head.position.y = 1.8;
+            guard.add(head);
 
-            // 視線コーン（赤いレーザーライト）
-            const coneGeo = new THREE.ConeGeometry(5, 18, 16, 1, true);
+            // 懐中電灯（ライトコーン）
+            const coneGeo = new THREE.ConeGeometry(4, 14, 16, 1, true);
             coneGeo.rotateX(-Math.PI / 2);
-            coneGeo.translate(0, 0, 9);
+            coneGeo.translate(0, 0, 7);
             const coneMat = new THREE.MeshBasicMaterial({
-                color: 0xff0044,
+                color: 0xfffaed,
                 transparent: true,
-                opacity: 0.25,
+                opacity: 0.35,
                 depthWrite: false,
                 side: THREE.DoubleSide
             });
-            const cone = new THREE.Mesh(coneGeo, coneMat);
-            enemyGroup.add(cone);
+            flashlightCone = new THREE.Mesh(coneGeo, coneMat);
+            flashlightCone.position.set(0, 1.5, 0);
+            guard.add(flashlightCone);
 
-            enemyGroup.position.set(startX, y, startZ);
-            scene.add(enemyGroup);
-
-            enemies.push({
-                mesh: enemyGroup,
-                baseZ: startZ,
-                rangeZ: moveRangeZ,
-                speed: 0.03,
-                timeOffset: Math.random() * 10
-            });
+            guard.position.set(-6, 0, -2);
+            scene.add(guard);
         }
 
-        // --- 色（擬態）変更 ---
-        function setColor(colorKey) {
-            if (isGameOver || isClear) return;
-            currentColor = colorKey;
-            
-            playerBodyMesh.material.color.setHex(COLOR_MAP[colorKey]);
-
-            // UIボタン更新
-            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${colorKey}`).classList.add('active');
-        }
-
-        // --- メインループ ---
+        // --- 7. アニメーション & ロジック ---
+        let walkCycle = 0;
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isGameOver && !isClear) {
-                updatePlayer();
-                updateEnemies();
-                checkStealthRules();
+                updatePlayerMovement();
+                updateGuardPatrol();
+                checkStealthAndDetection();
             }
 
-            // ゴール回転エフェクト
-            if(goal) goal.rotation.z += 0.02;
+            // ゴール展示物のアニメーション
+            if (goal) {
+                goal.rotation.x += 0.01;
+                goal.rotation.y += 0.015;
+            }
 
             renderer.render(scene, camera);
         }
 
-        // --- プレイヤー移動 & モーション ---
-        let walkTimer = 0;
-        function updatePlayer() {
-            const speed = 0.16;
-            let moveX = 0, moveZ = 0;
+        // プレイヤーの移動
+        function updatePlayerMovement() {
+            const speed = 0.14;
+            let mx = 0, mz = 0;
 
-            if (keys['w'] || keys['arrowup']) moveZ -= speed;
-            if (keys['s'] || keys['arrowdown']) moveZ += speed;
-            if (keys['a'] || keys['arrowleft']) moveX -= speed;
-            if (keys['d'] || keys['arrowright']) moveX += speed;
+            if (keys['w'] || keys['arrowup']) mz -= speed;
+            if (keys['s'] || keys['arrowdown']) mz += speed;
+            if (keys['a'] || keys['arrowleft']) mx -= speed;
+            if (keys['d'] || keys['arrowright']) mx += speed;
 
-            if (moveX !== 0 || moveZ !== 0) {
-                player.position.x += moveX;
-                player.position.z += moveZ;
+            if (mx !== 0 || mz !== 0) {
+                player.position.x += mx;
+                player.position.z += mz;
 
-                // 進行方向を向く
-                const targetAngle = Math.atan2(moveX, moveZ);
-                player.rotation.y = targetAngle;
+                // 向きを変える
+                player.rotation.y = Math.atan2(mx, mz);
 
-                // 歩行アニメーション（体を前後に揺らす）
-                walkTimer += 0.25;
-                playerBodyMesh.rotation.z = Math.sin(walkTimer) * 0.1;
-                player.position.y = 0.6 + Math.abs(Math.sin(walkTimer)) * 0.1;
-            } else {
-                playerBodyMesh.rotation.z = 0;
-                player.position.y = 0.6;
+                // 歩行アニメーション（通常ポーズ時のみ揺らす）
+                if (currentPoseIndex === 0) {
+                    walkCycle += 0.2;
+                    legR.rotation.x = Math.sin(walkCycle) * 0.5;
+                    legL.rotation.x = -Math.sin(walkCycle) * 0.5;
+                    armR.rotation.x = -Math.sin(walkCycle) * 0.4;
+                    armL.rotation.x = Math.sin(walkCycle) * 0.4;
+                }
+            } else if (currentPoseIndex === 0) {
+                legR.rotation.x = 0;
+                legL.rotation.x = 0;
+                armR.rotation.x = 0;
+                armL.rotation.x = 0;
             }
 
-            // カメレオンの目玉をキョロキョロ動かす
-            const eyeTime = Date.now() * 0.003;
-            eyeR.rotation.y = Math.sin(eyeTime) * 0.4;
-            eyeL.rotation.y = Math.cos(eyeTime * 0.8) * 0.4;
-
-            // エリア制限
-            player.position.x = Math.max(-16, Math.min(16, player.position.x));
-            player.position.z = Math.max(-20, Math.min(20, player.position.z));
+            // エリア外制限
+            player.position.x = Math.max(-14, Math.min(14, player.position.x));
+            player.position.z = Math.max(-18, Math.min(18, player.position.z));
 
             // カメラ追従
-            camera.position.x = player.position.x * 0.25;
-            camera.position.z = player.position.z + 9;
+            camera.position.x = player.position.x * 0.3;
+            camera.position.z = player.position.z + 10;
         }
 
-        // --- 敵の巡回 ＆ 首振り ---
-        function updateEnemies() {
-            const time = Date.now() * 0.001;
-            enemies.forEach(e => {
-                // 上下に巡回移動
-                e.mesh.position.z = e.baseZ + Math.sin(time * 1.2 + e.timeOffset) * e.rangeZ;
-                // 左右に首振り
-                e.mesh.rotation.y = Math.sin(time * 2.5 + e.timeOffset) * 0.6;
-            });
+        // 学芸員の巡回パターン
+        function updateGuardPatrol() {
+            const t = Date.now() * 0.001;
+            // X軸を行き来しながらライトをスキャン
+            guard.position.x = Math.sin(t * 0.8) * 10;
+            guard.rotation.y = Math.cos(t * 1.2) * 0.8 + (Math.cos(t * 0.8) > 0 ? 0 : Math.PI);
         }
 
-        // --- 擬態（保護色）判定 ---
-        function checkStealthRules() {
-            // 1. ゴール到達
+        // 擬態度＆見落とし判定
+        function checkStealthAndDetection() {
+            // 1. ゴール到達チェック
             if (player.position.distanceTo(goal.position) < 2.2) {
                 gameClear();
                 return;
             }
 
-            // プレイヤーが壁の近くにいて、色が合っているか判定
-            let isCamouflaged = false;
-            const playerBox = new THREE.Box3().setFromObject(playerBodyMesh);
-            playerBox.expandByScalar(1.0); // 判定範囲を少し広げる
+            // 2. プレイヤーが近くの展示物に正しく同化できているか計算
+            let bestStealthScore = 0;
 
-            for (let zone of colorZones) {
-                if (zone.bounds.intersectsBox(playerBox)) {
-                    if (zone.color === currentColor) {
-                        isCamouflaged = true;
-                        break;
+            artExhibits.forEach(exhibit => {
+                const dist = player.position.distanceTo(exhibit.position);
+                if (dist < 3.0) { // スポット内にいる
+                    let score = 0;
+
+                    // ポーズの一致度チェック
+                    if (currentPoseIndex === exhibit.requiredPose) {
+                        score += 50;
+                    }
+
+                    // 色（キャンバス平均色）の一致度チェック
+                    // 簡易的にキャンバス中央の色を取得して比較
+                    const pData = texCtx.getImageData(90, 90, 1, 1).data;
+                    const r = pData[0], g = pData[1], b = pData[2];
+                    
+                    const targetRGB = hexToRgb(exhibit.colorHex);
+                    const colorDiff = Math.abs(r - targetRGB.r) + Math.abs(g - targetRGB.g) + Math.abs(b - targetRGB.b);
+                    
+                    if (colorDiff < 150) {
+                        score += 50;
+                    } else if (colorDiff < 300) {
+                        score += 25;
+                    }
+
+                    if (score > bestStealthScore) bestStealthScore = score;
+                }
+            });
+
+            // 擬態度メーターの更新
+            const fillEl = document.getElementById('meter-bar-fill');
+            const textEl = document.getElementById('stealth-text');
+            fillEl.style.width = bestStealthScore + '%';
+            textEl.innerText = bestStealthScore + '%';
+
+            if (bestStealthScore >= 80) {
+                fillEl.style.backgroundColor = '#2ecc71'; // 同化成功（緑）
+            } else {
+                fillEl.style.backgroundColor = '#e74c3c'; // 同化不十分（赤）
+            }
+
+            // 3. 懐中電灯の光に入った時の見破り判定
+            const diff = new THREE.Vector3().subVectors(player.position, guard.position);
+            const distToGuard = diff.length();
+
+            if (distToGuard < 13.0) { // ライトの範囲内
+                const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(guard.quaternion);
+                const angle = forward.angleTo(diff.normalize());
+
+                if (angle < 0.45) { // ライトが照らしている
+                    // 同化度が80%未満なら発見される！
+                    if (bestStealthScore < 80) {
+                        gameOver();
                     }
                 }
             }
+        }
 
-            // 擬態成功中はプレイヤーを半透明にして「隠れてる感」を出す
-            playerBodyMesh.material.opacity = isCamouflaged ? 0.4 : 1.0;
-
-            // 2. 各敵の視線判定
-            enemies.forEach(e => {
-                const diff = new THREE.Vector3().subVectors(player.position, e.mesh.position);
-                const distance = diff.length();
-
-                // 視線距離内（16以内）
-                if (distance < 16) {
-                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(e.mesh.quaternion);
-                    const angle = forward.angleTo(diff.normalize());
-
-                    // 視野角（約30度以内）
-                    if (angle < 0.5) {
-                        // 擬態できていなければ発見されてゲームオーバー
-                        if (!isCamouflaged) {
-                            gameOver();
-                        }
-                    }
-                }
-            });
+        // HEXカラーをRGBに変換
+        function hexToRgb(hex) {
+            return {
+                r: (hex >> 16) & 255,
+                g: (hex >> 8) & 255,
+                b: hex & 255
+            };
         }
 
         function gameOver() {
@@ -489,8 +827,9 @@
         function resetGame() {
             isGameOver = false;
             isClear = false;
-            player.position.set(0, 0.6, 18);
-            setColor('green');
+            player.position.set(0, 0, 14);
+            setPose(0);
+            clearCanvas();
             document.getElementById('game-over-screen').classList.remove('active');
             document.getElementById('clear-screen').classList.remove('active');
         }
@@ -505,3 +844,9 @@
     </script>
 </body>
 </html>
+"""
+
+with open("chameleon_museum.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("Saved chameleon_museum.html successfully, length:", len(html_content))
