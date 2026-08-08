@@ -3,94 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>めっちゃカメレオン 3D</title>
+    <title>めっちゃカメレオン 3D Remake</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #111;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b0c10;
+            font-family: 'Segoe UI', 'メイリオ', sans-serif;
             user-select: none;
         }
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-        }
+        #canvas-container { width: 100vw; height: 100vh; }
+        
+        /* UIデザイン */
         #ui {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            top: 20px; left: 20px;
+            color: #ffffff;
+            background: rgba(15, 15, 25, 0.75);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
             pointer-events: none;
         }
-        h1 { margin: 0 0 5px 0; font-size: 24px; }
-        p { margin: 5px 0; font-size: 14px; }
-        .controls {
+        h1 { margin: 0 0 8px 0; font-size: 22px; color: #66fcf1; }
+        p { margin: 4px 0; font-size: 13px; color: #c5c6c7; }
+        .highlight { color: #45f3ff; font-weight: bold; }
+
+        /* コントロールバー */
+        .controls-bar {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
+            bottom: 25px; left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px 25px;
-            border-radius: 30px;
+            background: rgba(15, 15, 25, 0.85);
+            padding: 12px 25px;
+            border-radius: 40px;
             display: flex;
-            gap: 15px;
+            gap: 20px;
             align-items: center;
             color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .color-selector {
+            display: flex;
+            gap: 12px;
         }
         .color-btn {
-            width: 40px;
-            height: 40px;
+            width: 44px; height: 44px;
             border-radius: 50%;
-            border: 3px solid white;
+            border: 3px solid rgba(255,255,255,0.4);
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-            transition: transform 0.1s;
+            font-size: 16px;
+            color: white;
+            text-shadow: 1px 1px 3px black;
+            transition: all 0.2s ease;
         }
-        .color-btn:active { transform: scale(0.9); }
-        #btn-red { background: #ff4444; }
-        #btn-green { background: #44ff44; }
-        #btn-blue { background: #4444ff; }
-        
-        #game-over-screen, #clear-screen {
+        .color-btn:hover { transform: scale(1.1); }
+        .color-btn.active {
+            border-color: #ffffff;
+            box-shadow: 0 0 15px currentColor;
+            transform: scale(1.15);
+        }
+        #btn-red { background: #ff3366; color: #ff3366; }
+        #btn-green { background: #33ff77; color: #33ff77; }
+        #btn-blue { background: #33aaff; color: #33aaff; }
+        .btn-text { color: white; }
+
+        /* リザルト画面 */
+        .screen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(5, 5, 10, 0.9);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 32px;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.5s;
+            transition: opacity 0.4s ease;
         }
-        .active-screen {
-            opacity: 1 !important;
-            pointer-events: auto !important;
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
         }
-        button.restart-btn {
-            margin-top: 20px;
-            padding: 12px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            background: #ff0055;
-            color: white;
-            border: none;
-            border-radius: 25px;
+        .screen h2 { font-size: 48px; margin: 0 0 10px 0; }
+        .screen p { font-size: 18px; color: #aaa; margin-bottom: 25px; }
+        .btn-action {
+            padding: 14px 35px;
+            font-size: 18px; font-weight: bold;
+            background: #45f3ff; color: #0b0c10;
+            border: none; border-radius: 30px;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255,0,85,0.4);
+            box-shadow: 0 0 20px rgba(69,243,255,0.4);
+            transition: all 0.2s;
         }
-        button.restart-btn:hover { background: #ff2277; }
+        .btn-action:hover { background: #66fcf1; transform: scale(1.05); }
     </style>
-    <!-- Three.js Library -->
+    <!-- Three.js (3Dライブラリ) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -99,90 +115,89 @@
 
     <div id="ui">
         <h1>🦎 めっちゃカメレオン 3D</h1>
-        <p><b>[WASD / 矢印]</b> : 移動</p>
-        <p><b>[1, 2, 3]</b> : 擬態カラーチェンジ</p>
-        <p><b>ルール:</b> 赤・緑・青の壁の前で同じ色に変身して鬼の目を誤魔化せ！</p>
+        <p><span class="highlight">[WASD / 矢印]</span> : 移動</p>
+        <p><span class="highlight">[1, 2, 3 キー]</span> : 体の色を変更</p>
+        <p><b>ミッション:</b> 鬼の視線を壁と同化してやり過ごせ！</p>
     </div>
 
-    <div class="controls">
-        <span>色変更 [キー1,2,3]:</span>
-        <div class="color-btn" id="btn-red" onclick="setColor('red')">1</div>
-        <div class="color-btn" id="btn-green" onclick="setColor('green')">2</div>
-        <div class="color-btn" id="btn-blue" onclick="setColor('blue')">3</div>
+    <div class="controls-bar">
+        <span style="font-size: 14px; color: #aaa;">保護色切り替え:</span>
+        <div class="color-selector">
+            <div class="color-btn" id="btn-red" onclick="setColor('red')"><span class="btn-text">1</span></div>
+            <div class="color-btn active" id="btn-green" onclick="setColor('green')"><span class="btn-text">2</span></div>
+            <div class="color-btn" id="btn-blue" onclick="setColor('blue')"><span class="btn-text">3</span></div>
+        </div>
     </div>
 
-    <div id="game-over-screen">
-        <h2 style="color: #ff4444; margin: 0;">見つかった！！</h2>
-        <p style="font-size: 18px;">擬態が不完全だったようです...</p>
-        <button class="restart-btn" onclick="resetGame()">もう一度挑戦</button>
+    <!-- ゲームオーバー画面 -->
+    <div id="game-over-screen" class="screen">
+        <h2 style="color: #ff3366;">見つかった！！</h2>
+        <p>色の選択が違ったか、壁から離れすぎていました...</p>
+        <button class="btn-action" onclick="resetGame()">リトライ</button>
     </div>
 
-    <div id="clear-screen">
-        <h2 style="color: #44ff44; margin: 0;">STAGE CLEAR! 🎉</h2>
-        <p style="font-size: 18px;">見事に背景に溶け込みました！</p>
-        <button class="restart-btn" onclick="resetGame()">もう一度遊ぶ</button>
+    <!-- クリア画面 -->
+    <div id="clear-screen" class="screen">
+        <h2 style="color: #33ff77;">ステージクリア！ 🎉</h2>
+        <p>見事な擬態テクニックで脱出に成功しました！</p>
+        <button class="btn-action" onclick="resetGame()">もう一度プレイ</button>
     </div>
 
     <script>
-        // --- 基本設定 ---
+        // --- 設定値 & 変数 ---
         let scene, camera, renderer;
-        let player, enemy, goal;
-        let laserMesh;
-        let isGameOver = false;
-        let isClear = false;
+        let player, playerBodyMesh, eyeR, eyeL;
+        let enemies = [];
+        let goal;
+        let isGameOver = false, isClear = false;
 
-        // カラー定義
         const COLOR_MAP = {
-            red: 0xff4444,
-            green: 0x44ff44,
-            blue: 0x4444ff
+            red: 0xff3366,
+            green: 0x33ff77,
+            blue: 0x33aaff
         };
         let currentColor = 'green';
-
-        // 入力管理
         const keys = {};
-
-        // オブジェクトのリスト（当たり判定＆保護色判定用）
         const colorZones = [];
 
         function init() {
-            // シーンの作成
+            // シーン
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a24);
-            scene.fog = new THREE.FogExp2(0x1a1a24, 0.03);
+            scene.background = new THREE.Color(0x0a0a12);
+            scene.fog = new THREE.FogExp2(0x0a0a12, 0.025);
 
-            // カメラの作成（クォータービュー風）
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 18, 14);
-            camera.lookAt(0, 0, 2);
+            // カメラ（俯瞰クォータービュー）
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 22, 16);
+            camera.lookAt(0, 0, 0);
 
-            // レンダラーの作成
+            // レンダラー
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // ライティング
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
+            // 照明
+            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambient);
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(10, 20, 10);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
-            scene.add(dirLight);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(10, 25, 10);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
 
-            // フィールドの構築
+            // ステージ＆オブジェクト作成
             createStage();
-
-            // プレイヤー（カメレオン）の作成
             createPlayer();
+            
+            // 敵の配置（2体追加）
+            createEnemy(-6, 2, 2, 8);   // 左エリアを巡回
+            createEnemy(6, 2, -6, -8);  // 右エリアを巡回
 
-            // 敵（見張りロボ）の作成
-            createEnemy();
-
-            // イベントリスナー
+            // イベント登録
             window.addEventListener('keydown', e => {
                 keys[e.key.toLowerCase()] = true;
                 if(e.key === '1') setColor('red');
@@ -192,148 +207,181 @@
             window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
             window.addEventListener('resize', onWindowResize);
 
-            // ゲームループ
+            // アニメーション開始
             animate();
         }
 
-        // --- ステージ生成 ---
+        // --- ステージ作成 ---
         function createStage() {
             // 床
-            const floorGeo = new THREE.PlaneGeometry(30, 40);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.8 });
+            const floorGeo = new THREE.PlaneGeometry(36, 46);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x181824, roughness: 0.9 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // 壁＆保護色エリアの配置
-            // 赤のエリア
-            createWall(-8, 2, -5, 6, 4, 2, 'red');
-            // 緑のエリア
-            createWall(0, 2, 0, 6, 4, 2, 'green');
-            // 青のエリア
-            createWall(8, 2, 5, 6, 4, 2, 'blue');
+            // グリッド線模様（オシャレ感演出）
+            const grid = new THREE.GridHelper(40, 20, 0x333355, 0x222233);
+            grid.position.y = 0.01;
+            scene.add(grid);
 
-            // ゴール地点
-            const goalGeo = new THREE.CylinderGeometry(2, 2, 0.2, 32);
-            const goalMat = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
+            // 赤い壁エリア（左側）
+            createWallGroup(-9, 2, 5, 5, 4, 10, 'red');
+            // 緑の壁エリア（中央奥）
+            createWallGroup(0, 2, -3, 10, 4, 5, 'green');
+            // 青い壁エリア（右側）
+            createWallGroup(9, 2, 2, 5, 4, 12, 'blue');
+
+            // ゴールポータル
+            const goalGeo = new THREE.TorusGeometry(2, 0.2, 16, 32);
+            const goalMat = new THREE.MeshBasicMaterial({ color: 0x45f3ff, wireframe: true });
             goal = new THREE.Mesh(goalGeo, goalMat);
-            goal.position.set(0, 0.1, -15);
+            goal.rotation.x = Math.PI / 2;
+            goal.position.set(0, 0.2, -18);
             scene.add(goal);
         }
 
-        function createWall(x, y, z, w, h, d, colorKey) {
+        function createWallGroup(x, y, z, w, h, d, colorKey) {
             const geo = new THREE.BoxGeometry(w, h, d);
-            const mat = new THREE.MeshStandardMaterial({ color: COLOR_MAP[colorKey] });
+            const mat = new THREE.MeshStandardMaterial({
+                color: COLOR_MAP[colorKey],
+                roughness: 0.4,
+                metalness: 0.1
+            });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(x, y, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
 
-            // 擬態可能ゾーンとして保持
             colorZones.push({
                 bounds: new THREE.Box3().setFromObject(mesh),
                 color: colorKey
             });
         }
 
-        // --- プレイヤー生成 ---
+        // --- プレイヤー（カメレオン）作成 ---
         function createPlayer() {
             player = new THREE.Group();
 
-            // 体
-            const bodyGeo = new THREE.SphereGeometry(0.8, 16, 16);
-            bodyGeo.scale(1, 0.7, 1.4);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: COLOR_MAP[currentColor], roughness: 0.3 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.castShadow = true;
-            player.add(body);
+            // 胴体
+            const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16);
+            bodyGeo.scale(0.9, 0.7, 1.4);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: COLOR_MAP[currentColor],
+                roughness: 0.2,
+                transparent: true,
+                opacity: 1.0
+            });
+            playerBodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            playerBodyMesh.castShadow = true;
+            player.add(playerBodyMesh);
 
-            // 目（右・左）
-            const eyeGeo = new THREE.SphereGeometry(0.25, 8, 8);
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            // 目
+            const eyeGeo = new THREE.SphereGeometry(0.25, 12, 12);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
             const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+            // 右目
+            eyeR = new THREE.Group();
+            const eR = new THREE.Mesh(eyeGeo, eyeMat);
+            const pR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
+            pR.position.set(0.1, 0, 0.18);
+            eyeR.add(eR, pR);
             eyeR.position.set(0.5, 0.3, 0.6);
-            const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
-            pupilR.position.set(0.1, 0, 0.2);
-            eyeR.add(pupilR);
             player.add(eyeR);
 
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+            // 左目
+            eyeL = new THREE.Group();
+            const eL = new THREE.Mesh(eyeGeo, eyeMat);
+            const pL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
+            pL.position.set(-0.1, 0, 0.18);
+            eyeL.add(eL, pL);
             eyeL.position.set(-0.5, 0.3, 0.6);
-            const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMat);
-            pupilL.position.set(-0.1, 0, 0.2);
-            eyeL.add(pupilL);
             player.add(eyeL);
 
-            player.position.set(0, 0.6, 15);
+            player.position.set(0, 0.6, 18);
             scene.add(player);
         }
 
-        // --- 敵（見張りロボ）＆レーザー視線 ---
-        function createEnemy() {
-            enemy = new THREE.Group();
+        // --- 敵（見張りドローン）作成 ---
+        function createEnemy(startX, y, startZ, moveRangeZ) {
+            const enemyGroup = new THREE.Group();
 
-            // 頭部
-            const headGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8 });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.castShadow = true;
-            enemy.add(head);
+            // 本体ドローン
+            const bodyGeo = new THREE.IcosahedronGeometry(1.2, 1);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.9, roughness: 0.2 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            enemyGroup.add(body);
 
-            // 視線（赤レーザーコーン）
-            const laserGeo = new THREE.ConeGeometry(4, 20, 16, 1, true);
-            laserGeo.rotateX(-Math.PI / 2);
-            laserGeo.translate(0, 0, 10);
-            const laserMat = new THREE.MeshBasicMaterial({
-                color: 0xff0000,
+            // 赤いセンサーアイ
+            const eyeGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
+            const eye = new THREE.Mesh(eyeGeo, eyeMat);
+            eye.position.set(0, 0, 0.8);
+            enemyGroup.add(eye);
+
+            // 視線コーン（赤いレーザーライト）
+            const coneGeo = new THREE.ConeGeometry(5, 18, 16, 1, true);
+            coneGeo.rotateX(-Math.PI / 2);
+            coneGeo.translate(0, 0, 9);
+            const coneMat = new THREE.MeshBasicMaterial({
+                color: 0xff0044,
                 transparent: true,
-                opacity: 0.3,
+                opacity: 0.25,
+                depthWrite: false,
                 side: THREE.DoubleSide
             });
-            laserMesh = new THREE.Mesh(laserGeo, laserMat);
-            laserMesh.position.set(0, 0, 0);
-            enemy.add(laserMesh);
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            enemyGroup.add(cone);
 
-            enemy.position.set(0, 2, -10);
-            scene.add(enemy);
+            enemyGroup.position.set(startX, y, startZ);
+            scene.add(enemyGroup);
+
+            enemies.push({
+                mesh: enemyGroup,
+                baseZ: startZ,
+                rangeZ: moveRangeZ,
+                speed: 0.03,
+                timeOffset: Math.random() * 10
+            });
         }
 
-        // --- 擬態色切り替え ---
+        // --- 色（擬態）変更 ---
         function setColor(colorKey) {
             if (isGameOver || isClear) return;
             currentColor = colorKey;
             
-            // プレイヤーの体の色を変更
-            player.children[0].material.color.setHex(COLOR_MAP[colorKey]);
+            playerBodyMesh.material.color.setHex(COLOR_MAP[colorKey]);
 
-            // ボタンUIのハイライト調整
-            document.querySelectorAll('.color-btn').forEach(btn => btn.style.transform = 'scale(1)');
-            const activeBtn = document.getElementById(`btn-${colorKey}`);
-            if(activeBtn) activeBtn.style.transform = 'scale(1.2)';
+            // UIボタン更新
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${colorKey}`).classList.add('active');
         }
 
-        // --- ゲームループ ---
+        // --- メインループ ---
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isGameOver && !isClear) {
                 updatePlayer();
-                updateEnemy();
-                checkStealthAndCollisions();
+                updateEnemies();
+                checkStealthRules();
             }
+
+            // ゴール回転エフェクト
+            if(goal) goal.rotation.z += 0.02;
 
             renderer.render(scene, camera);
         }
 
-        // --- プレイヤー移動 ---
+        // --- プレイヤー移動 & モーション ---
+        let walkTimer = 0;
         function updatePlayer() {
-            const speed = 0.15;
-            let moveX = 0;
-            let moveZ = 0;
+            const speed = 0.16;
+            let moveX = 0, moveZ = 0;
 
             if (keys['w'] || keys['arrowup']) moveZ -= speed;
             if (keys['s'] || keys['arrowdown']) moveZ += speed;
@@ -344,93 +392,107 @@
                 player.position.x += moveX;
                 player.position.z += moveZ;
 
-                // 進行方向に向く
-                const angle = Math.atan2(moveX, moveZ);
-                player.rotation.y = angle;
+                // 進行方向を向く
+                const targetAngle = Math.atan2(moveX, moveZ);
+                player.rotation.y = targetAngle;
+
+                // 歩行アニメーション（体を前後に揺らす）
+                walkTimer += 0.25;
+                playerBodyMesh.rotation.z = Math.sin(walkTimer) * 0.1;
+                player.position.y = 0.6 + Math.abs(Math.sin(walkTimer)) * 0.1;
+            } else {
+                playerBodyMesh.rotation.z = 0;
+                player.position.y = 0.6;
             }
 
-            // 移動制限（ステージ外へ出ない）
-            player.position.x = Math.max(-12, Math.min(12, player.position.x));
-            player.position.z = Math.max(-18, Math.min(18, player.position.z));
+            // カメレオンの目玉をキョロキョロ動かす
+            const eyeTime = Date.now() * 0.003;
+            eyeR.rotation.y = Math.sin(eyeTime) * 0.4;
+            eyeL.rotation.y = Math.cos(eyeTime * 0.8) * 0.4;
 
-            // カメラをプレイヤーに少し追従させる
-            camera.position.x = player.position.x * 0.3;
-            camera.position.z = player.position.z + 8;
+            // エリア制限
+            player.position.x = Math.max(-16, Math.min(16, player.position.x));
+            player.position.z = Math.max(-20, Math.min(20, player.position.z));
+
+            // カメラ追従
+            camera.position.x = player.position.x * 0.25;
+            camera.position.z = player.position.z + 9;
         }
 
-        // --- 敵の首振りアニメーション ---
-        function updateEnemy() {
-            // 首を左右に振る
-            const time = Date.now() * 0.0015;
-            enemy.rotation.y = Math.sin(time) * 0.8;
+        // --- 敵の巡回 ＆ 首振り ---
+        function updateEnemies() {
+            const time = Date.now() * 0.001;
+            enemies.forEach(e => {
+                // 上下に巡回移動
+                e.mesh.position.z = e.baseZ + Math.sin(time * 1.2 + e.timeOffset) * e.rangeZ;
+                // 左右に首振り
+                e.mesh.rotation.y = Math.sin(time * 2.5 + e.timeOffset) * 0.6;
+            });
         }
 
-        // --- 擬態判定 ＆ 勝敗チェック ---
-        function checkStealthAndCollisions() {
-            // 1. ゴール判定
-            const distToGoal = player.position.distanceTo(goal.position);
-            if (distToGoal < 2.0) {
+        // --- 擬態（保護色）判定 ---
+        function checkStealthRules() {
+            // 1. ゴール到達
+            if (player.position.distanceTo(goal.position) < 2.2) {
                 gameClear();
                 return;
             }
 
-            // 2. 視線に入っているかの判定
-            // 敵からプレイヤーへのベクトル
-            const diff = new THREE.Vector3().subVectors(player.position, enemy.position);
-            const distance = diff.length();
+            // プレイヤーが壁の近くにいて、色が合っているか判定
+            let isCamouflaged = false;
+            const playerBox = new THREE.Box3().setFromObject(playerBodyMesh);
+            playerBox.expandByScalar(1.0); // 判定範囲を少し広げる
 
-            // レーザーの有効距離内（20以内）か
-            if (distance < 18) {
-                // 敵の正面ベクトル
-                const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(enemy.quaternion);
-                const angle = forward.angleTo(diff.normalize());
-
-                // 視野角（約25度以内に入っているか）
-                if (angle < 0.45) {
-                    
-                    // --- 擬態チェック ---
-                    let isCamouflaged = false;
-
-                    // プレイヤーが現在接触・近接している壁ゾーンを調べる
-                    const playerBox = new THREE.Box3().setFromObject(player.children[0]);
-                    // 少し判定を広げる
-                    playerBox.expandByScalar(1.2);
-
-                    for (let zone of colorZones) {
-                        if (zone.bounds.intersectsBox(playerBox)) {
-                            // 近い壁の色と自分の色が一致していれば擬態成功！
-                            if (zone.color === currentColor) {
-                                isCamouflaged = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 擬態できていなければ見つかる！
-                    if (!isCamouflaged) {
-                        gameOver();
+            for (let zone of colorZones) {
+                if (zone.bounds.intersectsBox(playerBox)) {
+                    if (zone.color === currentColor) {
+                        isCamouflaged = true;
+                        break;
                     }
                 }
             }
+
+            // 擬態成功中はプレイヤーを半透明にして「隠れてる感」を出す
+            playerBodyMesh.material.opacity = isCamouflaged ? 0.4 : 1.0;
+
+            // 2. 各敵の視線判定
+            enemies.forEach(e => {
+                const diff = new THREE.Vector3().subVectors(player.position, e.mesh.position);
+                const distance = diff.length();
+
+                // 視線距離内（16以内）
+                if (distance < 16) {
+                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(e.mesh.quaternion);
+                    const angle = forward.angleTo(diff.normalize());
+
+                    // 視野角（約30度以内）
+                    if (angle < 0.5) {
+                        // 擬態できていなければ発見されてゲームオーバー
+                        if (!isCamouflaged) {
+                            gameOver();
+                        }
+                    }
+                }
+            });
         }
 
         function gameOver() {
             isGameOver = true;
-            document.getElementById('game-over-screen').classList.add('active-screen');
+            document.getElementById('game-over-screen').classList.add('active');
         }
 
         function gameClear() {
             isClear = true;
-            document.getElementById('clear-screen').classList.add('active-screen');
+            document.getElementById('clear-screen').classList.add('active');
         }
 
         function resetGame() {
             isGameOver = false;
             isClear = false;
-            player.position.set(0, 0.6, 15);
+            player.position.set(0, 0.6, 18);
             setColor('green');
-            document.getElementById('game-over-screen').classList.remove('active-screen');
-            document.getElementById('clear-screen').classList.remove('active-screen');
+            document.getElementById('game-over-screen').classList.remove('active');
+            document.getElementById('clear-screen').classList.remove('active');
         }
 
         function onWindowResize() {
@@ -439,7 +501,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // 開始
         window.onload = init;
     </script>
 </body>
