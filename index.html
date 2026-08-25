@@ -1,753 +1,1177 @@
-<!DOCTYPE html>
+html_content = '''<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>めっちゃカメレオン 3D - 改良版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Opposition‐WAR Custom Online & Mobile</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            overflow: hidden;
-            background-color: #0d0d11;
-            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
             user-select: none;
-            color: #fff;
         }
-        #canvas-container { width: 100vw; height: 100vh; }
 
-        /* タイトル画面 */
-        #title-screen {
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #05080c;
+            font-family: 'Impact', 'Segoe UI', Roboto, sans-serif;
+            touch-action: none;
+        }
+
+        /* --- UI OVERLAY SCREENS --- */
+        .overlay-screen {
             position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: radial-gradient(circle, #2c3e50 0%, #0d0d11 100%);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(15,25,35,0.96) 0%, rgba(5,5,10,0.98) 100%);
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
-            z-index: 200;
+            color: #fff;
+            z-index: 100;
+            padding: 15px;
+            overflow-y: auto;
         }
-        #title-screen h1 {
-            font-size: 48px;
-            color: #f39c12;
-            text-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
-            margin-bottom: 15px;
-        }
-        #title-screen p {
-            font-size: 15px;
-            color: #bdc3c7;
-            max-width: 550px;
+
+        h1 {
+            font-size: clamp(28px, 6vw, 48px);
+            margin: 10px 0 2px 0;
+            letter-spacing: 3px;
+            color: #ff3300;
+            text-shadow: 0 0 15px #ff3300, 2px 2px 0px #000;
             text-align: center;
-            line-height: 1.6;
-            margin-bottom: 30px;
         }
-        .start-btn {
-            padding: 16px 45px;
-            font-size: 22px;
-            font-weight: bold;
-            background: #f39c12;
-            color: #111;
-            border: none;
-            border-radius: 40px;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(243, 156, 18, 0.4);
-            transition: transform 0.2s, background 0.2s;
-        }
-        .start-btn:hover { transform: scale(1.08); background: #ffb733; }
 
-        /* ゲーム画面HUD */
-        #hud {
-            position: absolute;
-            top: 15px; left: 15px;
-            background: rgba(15, 15, 25, 0.85);
-            padding: 15px 25px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.15);
-            backdrop-filter: blur(8px);
-            z-index: 10;
-            pointer-events: none;
+        p.subtitle {
+            font-size: clamp(10px, 2.5vw, 13px);
+            color: #00e1ff;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+            text-align: center;
         }
-        .timer-title { font-size: 12px; color: #aaa; }
-        .timer-val { font-size: 28px; font-weight: bold; color: #2ecc71; font-family: monospace; }
-        .guard-status { font-size: 13px; color: #e74c3c; margin-top: 4px; font-weight: bold; }
 
-        /* パレットバー（画面上部中央） */
-        #palette-bar {
-            position: absolute;
-            top: 15px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(20, 20, 30, 0.9);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 1px solid rgba(255,255,255,0.2);
+        /* Mode Selection & Online Bar */
+        .mode-container {
             display: flex;
-            gap: 15px;
-            align-items: center;
-            z-index: 10;
+            gap: 10px;
+            margin-bottom: 12px;
+            width: 100%;
+            max-width: 480px;
         }
-        .color-swatch {
-            width: 26px; height: 26px;
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: #112233;
+            border: 2px solid #00aaff;
+            color: #fff;
+            font-weight: bold;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #ff8800;
+            border-color: #ffff00;
+            box-shadow: 0 0 12px rgba(255,136,0,0.6);
+        }
+
+        /* Machine & Custom Panel */
+        .panel-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .select-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid #00aaff;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .select-card.active {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.18);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+        }
+
+        .select-card h2 { margin: 0 0 4px 0; color: #fff; font-size: clamp(14px, 3.5vw, 18px); }
+        .select-card p { font-size: clamp(10px, 2.2vw, 12px); color: #ccc; margin: 0; font-family: sans-serif; }
+
+        /* Custom Section */
+        .custom-section {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 170, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 12px;
+            font-family: sans-serif;
+        }
+
+        .custom-title {
+            font-size: 12px;
+            color: #00e1ff;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #00e1ff;
+            padding-bottom: 2px;
+            font-weight: bold;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 30px; height: 30px;
             border-radius: 50%;
             border: 2px solid #fff;
             cursor: pointer;
-            transition: transform 0.15s;
         }
-        .color-swatch:hover { transform: scale(1.2); }
-        .color-swatch.selected { border-color: #f39c12; transform: scale(1.3); box-shadow: 0 0 10px #f39c12; }
+        .color-btn.selected { border: 3px solid #ffff00; box-shadow: 0 0 10px #ffff00; }
 
-        /* 筆の太さボタン */
-        .brush-size-btn {
-            padding: 4px 10px;
-            font-size: 12px;
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
-            border-radius: 12px;
-            cursor: pointer;
-        }
-        .brush-size-btn.active {
-            background: #f39c12;
-            color: #111;
-            font-weight: bold;
-            border-color: #fff;
-        }
+        .spec-select { display: flex; gap: 8px; }
 
-        /* 操作説明ガイド（下部） */
-        #guide-bar {
-            position: absolute;
-            bottom: 20px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(20, 20, 30, 0.9);
-            padding: 10px 24px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            font-size: 13px;
-            color: #ddd;
-            z-index: 10;
-            pointer-events: none;
+        .spec-btn {
+            flex: 1; padding: 6px 4px; font-size: 10px; background: #223344;
+            color: #fff; border: 1px solid #446688; border-radius: 4px; cursor: pointer;
             text-align: center;
         }
+        .spec-btn.selected { background: #0088cc; border-color: #00ffff; font-weight: bold; }
 
-        /* 擬態成功度バー */
-        #stealth-meter {
-            position: absolute;
-            bottom: 65px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 6px 16px;
-            border-radius: 12px;
-            font-size: 13px;
+        /* Online Lobby Box */
+        #online-panel {
+            display: none;
+            background: rgba(10, 25, 40, 0.85);
+            border: 1px solid #00ffcc;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+
+        .online-input-group {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 10;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 6px;
+        }
+
+        .online-input-group input {
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #00aaff;
+            background: #000;
+            color: #fff;
+            font-size: 14px;
+            width: 130px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .online-input-group button {
+            padding: 6px 12px;
+            background: #00aa66;
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #online-status { margin-top: 6px; color: #ffcc00; font-weight: bold; }
+
+        /* Start Button */
+        .btn-start {
+            width: 100%;
+            max-width: 480px;
+            padding: 12px;
+            font-size: 20px;
+            background: linear-gradient(45deg, #ff3300, #ff8800);
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(255, 51, 0, 0.6);
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        /* Leaderboard Modal / Section */
+        .leaderboard-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 100%;
+            max-width: 480px;
+            font-family: sans-serif;
+            font-size: 11px;
+            color: #aaa;
+        }
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+        }
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 3px 6px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .leaderboard-table th { color: #00ffcc; }
+
+        /* HUD & MOBILE CONTROLS */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        
+        #enemy-hp-container {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px;
+        }
+        .enemy-hp-card {
+            background: rgba(0,0,0,0.75); border: 1px solid #ff3333;
+            padding: 4px 8px; border-radius: 5px; width: 110px; text-align: center; color: #fff;
+        }
+        .enemy-hp-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 2px; overflow: hidden; }
+        .enemy-hp-bar-fill { width: 100%; height: 100%; background: #ff3300; transition: width 0.1s; }
+
+        /* Minimap */
+        #minimap-container {
+            position: absolute; top: 12px; right: 12px; width: 90px; height: 90px;
+            border: 2px solid #00e1ff; border-radius: 50%; overflow: hidden;
+            background: rgba(5, 15, 25, 0.8); box-shadow: 0 0 8px rgba(0,225,255,0.4);
+        }
+        #minimap { width: 100%; height: 100%; }
+
+        /* Player HP UI */
+        #player-hp-container {
+            position: absolute; top: 12px; left: 12px;
+            width: 160px; background: rgba(0,0,0,0.8); border: 1.5px solid #00ffcc;
+            border-radius: 6px; padding: 6px 10px; text-align: center;
+        }
+        .player-hp-header { display: flex; justify-content: space-between; color: #00ffcc; font-size: 11px; margin-bottom: 2px; }
+        .player-hp-bar-bg { width: 100%; height: 10px; background: #112222; border-radius: 3px; overflow: hidden; border: 1px solid #00ffcc; margin-bottom: 4px; }
+        .player-hp-bar-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #00aa66, #00ffcc); transition: width 0.1s; }
+
+        .skill-container { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #ffcc00; }
+        .skill-bar-bg { flex: 1; height: 8px; background: #222; border: 1px solid #ffcc00; border-radius: 2px; overflow: hidden; }
+        .skill-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff8800, #ffff00); transition: width 0.1s; }
+
+        /* Virtual Mobile Controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Joystick Left */
+        #joystick-zone {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(0, 225, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 35px; left: 35px;
+            width: 50px; height: 50px;
+            background: radial-gradient(circle, #00ffff, #0088cc);
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffff;
             pointer-events: none;
         }
-        #meter-bar-fill {
-            width: 0%; height: 10px; background: #e74c3c; border-radius: 5px; transition: width 0.2s;
-        }
 
-        /* モーダル結果画面 */
-        .modal-screen {
+        /* Action Buttons Right */
+        #action-buttons {
             position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.85);
+            bottom: 25px;
+            right: 20px;
             display: flex;
             flex-direction: column;
+            gap: 12px;
+            align-items: flex-end;
+            pointer-events: auto;
+        }
+
+        .btn-touch-action {
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-weight: bold;
+            display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 300;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.4s;
+            box-shadow: 0 0 12px rgba(0,0,0,0.5);
+            touch-action: none;
+            user-select: none;
         }
-        .modal-screen.active { opacity: 1; pointer-events: auto; }
-        .modal-card {
-            background: #222; padding: 35px 50px; border-radius: 24px; border: 2px solid #444; text-align: center;
+        .btn-touch-action:active { transform: scale(0.92); }
+
+        #btn-shoot {
+            width: 70px; height: 70px;
+            background: radial-gradient(circle, #ff5500, #aa0000);
+            border: 2px solid #ffaa00;
+            font-size: 14px;
         }
-        .restart-btn {
-            margin-top: 20px; padding: 12px 30px; border: none; border-radius: 25px;
-            background: #f39c12; color: #111; font-weight: bold; font-size: 16px; cursor: pointer;
+
+        .small-btn-row {
+            display: flex;
+            gap: 10px;
         }
+
+        #btn-skill {
+            width: 52px; height: 52px;
+            background: radial-gradient(circle, #ffaa00, #996600);
+            border: 2px solid #ffff00;
+            font-size: 11px;
+        }
+
+        #btn-boost {
+            width: 52px; height: 52px;
+            background: radial-gradient(circle, #00ccff, #0044aa);
+            border: 2px solid #00ffff;
+            font-size: 11px;
+        }
+
+        /* Network Indicator Ping */
+        #net-ping {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #00ffcc;
+            background: rgba(0,0,0,0.6);
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        /* Result Screen */
+        #result-screen { display: none; text-align: center; z-index: 150; }
+        #result-title { font-size: clamp(40px, 10vw, 72px); margin-bottom: 10px; text-shadow: 0 0 30px rgba(255,255,255,0.8); }
+        .btn-retry { padding: 12px 35px; font-size: 20px; background: #00aaff; border: none; color: #fff; cursor: pointer; font-weight: bold; border-radius: 4px; }
     </style>
-    <!-- Three.js -->
+
+    <!-- Three.js & PeerJS for WebRTC Online Multiplayer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
 
-    <div id="canvas-container"></div>
+    <!-- 1. MAIN SELECT / LOBBY SCREEN -->
+    <div id="select-screen" class="overlay-screen">
+        <h1>Opposition‐WAR</h1>
+        <p class="subtitle">ONLINE & MOBILE MULTIPLAYER</p>
 
-    <!-- タイトル画面 -->
-    <div id="title-screen">
-        <h1>🦎 めっちゃカメレオン 3D</h1>
-        <p>完全に真っ白な棒人間を自由に塗りつぶして展示物に同化せよ！<br><br>
-        【操作方法】<br>
-        <b>[WASD]</b> 移動 | <b>[Space]</b> ジャンプ | <b>[Shift長押し]</b> 壁に貼り付く<br>
-        <b>[1, 2, 3 キー]</b> ポーズ切り替え | <b>[左ドラッグ]</b> 体に色塗り | <b>[右ドラッグ]</b> 視点回転<br><br>
-        スタート後<b>30秒で鬼が出現</b>。3分間見つからずに隠れ切れ！</p>
-        <button class="start-btn" onclick="startGame()">GAME START</button>
+        <!-- Mode Select -->
+        <div class="mode-container">
+            <div id="mode-OFFLINE" class="mode-btn active" onclick="selectPlayMode('OFFLINE')">🎮 ソロ / AI対戦</div>
+            <div id="mode-ONLINE" class="mode-btn" onclick="selectPlayMode('ONLINE')">🌐 オンライン対戦</div>
+        </div>
+
+        <!-- Online Room Setup Panel -->
+        <div id="online-panel">
+            <div style="color:#00ffcc; font-weight:bold; margin-bottom:4px;">オンラインルーム作成 / 参加 (Peer2Peer)</div>
+            <div>あなたのID: <span id="my-peer-id" style="color:#ffff00; font-weight:bold;">接続中...</span></div>
+            
+            <div class="online-input-group">
+                <button onclick="hostOnlineRoom()">部屋を作成</button>
+                <input type="text" id="join-room-id" placeholder="部屋IDを入力" maxlength="6">
+                <button onclick="joinOnlineRoom()" style="background:#0088cc;">参加</button>
+            </div>
+            <div id="online-status">モードを選択してください</div>
+        </div>
+
+        <!-- Machine Select -->
+        <div class="panel-container">
+            <div id="card-TANK" class="select-card active" onclick="selectMachine('TANK')">
+                <h2>重戦車 (TANK)</h2>
+                <p>高耐久 & 360°ミサイル</p>
+            </div>
+            <div id="card-BIKE" class="select-card" onclick="selectMachine('BIKE')">
+                <h2>バイク (BIKE)</h2>
+                <p>超高速 & ニトロバースト</p>
+            </div>
+        </div>
+
+        <!-- Custom Spec & Color -->
+        <div class="custom-section">
+            <div class="custom-title">1. 車体カラー (BODY COLOR)</div>
+            <div class="color-picker">
+                <div class="color-btn selected" style="background:#0088ff;" onclick="selectColor(0x0088ff, this)"></div>
+                <div class="color-btn" style="background:#ff2222;" onclick="selectColor(0xff2222, this)"></div>
+                <div class="color-btn" style="background:#22cc55;" onclick="selectColor(0x22cc55, this)"></div>
+                <div class="color-btn" style="background:#ffaa00;" onclick="selectColor(0xffaa00, this)"></div>
+                <div class="color-btn" style="background:#111116;" onclick="selectColor(0x222228, this)"></div>
+            </div>
+
+            <div class="custom-title">2. スペック (SPEC TYPE)</div>
+            <div class="spec-select">
+                <div id="spec-SPEED" class="spec-btn selected" onclick="selectSpec('SPEED')">⚡ 速度型<br>(速+20% / HP-15%)</div>
+                <div id="spec-ARMOR" class="spec-btn" onclick="selectSpec('ARMOR')">🛡️ 装甲型<br>(HP+30% / 速-10%)</div>
+                <div id="spec-POWER" class="spec-btn" onclick="selectSpec('POWER')">💥 火力型<br>(火力+30% / 連射-20%)</div>
+            </div>
+        </div>
+
+        <button class="btn-start" onclick="startGame()">BATTLE START</button>
+
+        <!-- Leaderboard -->
+        <div class="leaderboard-box">
+            <div style="color:#00ffcc; font-weight:bold; margin-bottom:2px;">🏆 オンライン / ローカルランキング</div>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr><th>Rank</th><th>Player</th><th>Machine</th><th>Score</th></tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td>1st</td><td>Ace_Pilot</td><td>TANK</td><td>2450</td></tr>
+                    <tr><td>2nd</td><td>Cyber_Rider</td><td>BIKE</td><td>1980</td></tr>
+                    <tr><td>3rd</td><td>Iron_Claw</td><td>TANK</td><td>1520</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- ゲームUI -->
+    <!-- 2. IN-GAME HUD & MOBILE CONTROLS -->
     <div id="hud">
-        <div class="timer-title">生き残り目標（残り時間）</div>
-        <div class="timer-val" id="timer-display">03:00</div>
-        <div class="guard-status" id="guard-status">鬼出現まで: 30秒</div>
-    </div>
-
-    <!-- パレット ＆ 筆サイズUI -->
-    <div id="palette-bar">
-        <span style="font-size: 12px; color: #aaa;">色:</span>
-        <div id="palette-colors" style="display: flex; gap: 6px;"></div>
-        
-        <span style="font-size: 12px; color: #aaa; margin-left: 10px;">筆の太さ:</span>
-        <button class="brush-size-btn" onclick="setBrushSize(8, this)">小</button>
-        <button class="brush-size-btn active" onclick="setBrushSize(16, this)">中</button>
-        <button class="brush-size-btn" onclick="setBrushSize(32, this)">大</button>
-
-        <button style="padding: 4px 10px; font-size: 11px; background:#444; color:#fff; border:none; border-radius:6px; cursor:pointer; margin-left:10px;" onclick="resetPlayerColor()">白に戻す</button>
-    </div>
-
-    <!-- 同化度メーター -->
-    <div id="stealth-meter">
-        <span>同化率:</span>
-        <div style="width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden;">
-            <div id="meter-bar-fill"></div>
+        <div id="player-hp-container">
+            <div class="player-hp-header">
+                <span id="player-name">PLAYER</span>
+                <span id="player-hp-text">100 / 100</span>
+            </div>
+            <div class="player-hp-bar-bg">
+                <div id="player-hp-fill" class="player-hp-bar-fill"></div>
+            </div>
+            <div class="skill-container">
+                <span>SKILL [E]</span>
+                <div class="skill-bar-bg">
+                    <div id="skill-bar-fill" class="skill-bar-fill"></div>
+                </div>
+            </div>
         </div>
-        <span id="stealth-text">0%</span>
-    </div>
 
-    <!-- ガイドバー -->
-    <div id="guide-bar">
-        [WASD] 移動 | [Space] ジャンプ | [Shift] 壁貼り付き | [1, 2, 3] ポーズ変更
-    </div>
+        <div id="enemy-hp-container"></div>
 
-    <!-- 結果表示画面 -->
-    <div id="game-over-screen" class="modal-screen">
-        <div class="modal-card">
-            <h2 style="color: #e74c3c; font-size: 36px;">見つかった！！</h2>
-            <p style="margin-top: 10px; color:#aaa;">学芸員に見破られてしまいました...</p>
-            <button class="restart-btn" onclick="restartGame()">リトライ</button>
+        <div id="minimap-container">
+            <canvas id="minimap" width="90" height="90"></canvas>
+        </div>
+
+        <div id="net-ping">ONLINE PING: 24ms</div>
+
+        <!-- Touch Controls overlay -->
+        <div id="mobile-controls">
+            <!-- Left Virtual Joystick -->
+            <div id="joystick-zone">
+                <div id="joystick-knob"></div>
+            </div>
+
+            <!-- Right Action Buttons -->
+            <div id="action-buttons">
+                <button id="btn-shoot" class="btn-touch-action">FIRE</button>
+                <div class="small-btn-row">
+                    <button id="btn-boost" class="btn-touch-action">BOOST</button>
+                    <button id="btn-skill" class="btn-touch-action">SKILL</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="clear-screen" class="modal-screen">
-        <div class="modal-card">
-            <h2 style="color: #2ecc71; font-size: 36px;">STAGE CLEAR! 🎉</h2>
-            <p style="margin-top: 10px; color:#aaa;">3分間完璧に隠れ切りました！勝利です！</p>
-            <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
-        </div>
+    <!-- 3. RESULT SCREEN -->
+    <div id="result-screen" class="overlay-screen">
+        <div id="result-title">VICTORY</div>
+        <button class="btn-retry" onclick="location.reload()">RETRY</button>
     </div>
 
     <script>
-        // --- 1. グローバル変数 ---
+        // WebAudio Sound Engine
+        let audioCtx = null, bgmGainNode = null, seGainNode = null;
+        let bgmInterval = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                bgmGainNode = audioCtx.createGain();
+                seGainNode = audioCtx.createGain();
+                bgmGainNode.connect(audioCtx.destination);
+                seGainNode.connect(audioCtx.destination);
+                bgmGainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                seGainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playShootSound(isHeavy) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = isHeavy ? 'sawtooth' : 'square';
+            osc.frequency.setValueAtTime(isHeavy ? 150 : 600, now);
+            osc.frequency.exponentialRampToValueAtTime(30, now + (isHeavy ? 0.3 : 0.1));
+            gain.gain.setValueAtTime(0.7, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + (isHeavy ? 0.3 : 0.1));
+            osc.connect(gain); gain.connect(seGainNode);
+            osc.start(now); osc.stop(now + (isHeavy ? 0.3 : 0.1));
+        }
+
+        function playExplosionSound() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const bufferSize = audioCtx.sampleRate * 0.4;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(300, now);
+            filter.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.9, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+            noise.connect(filter); filter.connect(gain); gain.connect(seGainNode);
+            noise.start(now);
+        }
+
+        function playSkillSound() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+            gain.gain.setValueAtTime(0.6, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+            osc.connect(gain); gain.connect(seGainNode);
+            osc.start(now); osc.stop(now + 0.45);
+        }
+
+        function startBGM() {
+            if (!audioCtx) return;
+            let step = 0;
+            const notes = [110, 110, 130, 110, 146, 130, 110, 98];
+            bgmInterval = setInterval(() => {
+                if (gameState !== 'PLAYING') return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(notes[step % notes.length], now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                osc.connect(gain); gain.connect(bgmGainNode);
+                osc.start(now); osc.stop(now + 0.2);
+                step++;
+            }, 180);
+        }
+
+        // --- ONLINE MULTIPLAYER PEERJS ENGINE ---
+        let playMode = 'OFFLINE'; // 'OFFLINE' | 'ONLINE'
+        let peer = null, conn = null;
+        let isHost = false, roomCode = '';
+        let remotePlayerData = { x: 0, z: 0, rotY: 0, hp: 100, isShooting: false, machineType: 'BIKE' };
+
+        function selectPlayMode(mode) {
+            playMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`mode-${mode}`).classList.add('active');
+            document.getElementById('online-panel').style.display = mode === 'ONLINE' ? 'block' : 'none';
+            if (mode === 'ONLINE' && !peer) initPeerJS();
+        }
+
+        function initPeerJS() {
+            const shortId = 'OPW' + Math.floor(1000 + Math.random() * 9000);
+            peer = new Peer(shortId);
+
+            peer.on('open', id => {
+                document.getElementById('my-peer-id').innerText = id;
+                document.getElementById('online-status').innerText = 'ルーム作成またはID入力で参加してください';
+            });
+
+            peer.on('connection', c => {
+                conn = c;
+                isHost = true;
+                setupConnection();
+                document.getElementById('online-status').innerText = '対戦相手が接続しました！STARTを押してください';
+            });
+
+            peer.on('error', err => {
+                document.getElementById('online-status').innerText = '接続エラー: ' + err.type;
+            });
+        }
+
+        function hostOnlineRoom() {
+            if (!peer) return;
+            const id = document.getElementById('my-peer-id').innerText;
+            document.getElementById('online-status').innerText = `部屋を作成しました！対戦相手にID [ ${id} ] を共有してください`;
+        }
+
+        function joinOnlineRoom() {
+            const targetId = document.getElementById('join-room-id').value.trim();
+            if (!targetId || !peer) {
+                alert('部屋IDを入力してください');
+                return;
+            }
+            document.getElementById('online-status').innerText = `ID: ${targetId} へ接続中...`;
+            conn = peer.connect(targetId);
+            isHost = false;
+            setupConnection();
+        }
+
+        function setupConnection() {
+            conn.on('open', () => {
+                document.getElementById('online-status').innerText = 'オンライン接続成功！バトルを開始できます';
+                document.getElementById('net-ping').style.display = 'block';
+            });
+
+            conn.on('data', data => {
+                if (data.type === 'SYNC_POS') {
+                    remotePlayerData = data;
+                } else if (data.type === 'SHOOT') {
+                    if (remoteEnemyMesh) shoot(remoteEnemyMesh, false);
+                }
+            });
+        }
+
+        function sendNetworkData(data) {
+            if (conn && conn.open) conn.send(data);
+        }
+
+        // --- CUSTOMIZATION STATE ---
+        let selectedMachine = 'TANK';
+        let selectedColorHex = 0x0088ff;
+        let selectedSpec = 'SPEED';
+
+        function selectMachine(type) {
+            selectedMachine = type;
+            document.querySelectorAll('.select-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`card-${type}`).classList.add('active');
+        }
+
+        function selectColor(hex, el) {
+            selectedColorHex = hex;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function selectSpec(spec) {
+            selectedSpec = spec;
+            document.querySelectorAll('.spec-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById(`spec-${spec}`).classList.add('selected');
+        }
+
+        // --- GAME ENGINE & THREE.JS ---
         let scene, camera, renderer;
-        let player, headMesh, bodyMesh, armL, armR, legL, legR;
-        let guard, flashlightCone;
-        let isGameStarted = false, isGameOver = false, isClear = false;
+        let player, playerTurret, playerCannon, rearWheelMesh;
+        let playerHp = 100, maxHp = 100, attackDamage = 15, cooldownMult = 1.0;
+        let playerSpeed = 0, maxSpeed = 0.22, rotSpeed = 0.025;
+        let skillGauge = 0, isSkillActive = false, skillTimer = 0;
+        let camShake = 0;
 
-        // 物理・移動変数
-        let playerVelocityY = 0;
-        let isGrounded = false;
-        let isClingingToWall = false;
-        const GRAVITY = -0.015;
-        const JUMP_POWER = 0.35;
-
-        // タイマー
-        let spawnCountdown = 30;
-        let surviveTime = 180;
-        let guardActive = false;
-        let timerInterval = null;
-
-        // ペイント関連
-        let canvasTex, texCanvas, texCtx;
-        let currentColor = '#ff3366';
-        let currentBrushSize = 16;
-        const paletteColors = ['#ffffff', '#ff3366', '#33aaff', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e', '#000000'];
-
-        // TPSカメラ制御（感度を大幅に調整）
-        let cameraAngleY = 0;
-        let cameraAngleX = 0.3;
-        let isRightMouseDown = false;
-        let isLeftMouseDown = false;
-        let previousMouseX = 0, previousMouseY = 0;
-
-        // 入力・ポーズ・ステージ情報
+        const bullets = [], enemies = [], particles = [], obstacles = [], items = [];
+        let remoteEnemyMesh = null;
         const keys = {};
-        let currentPoseIndex = 1; // 1:直立, 2:T字, 3:彫刻
-        const artExhibits = [];
-        const walls = []; // 壁判定用
+        let gameState = 'SELECT', endAnimTimer = 0;
 
-        const raycaster = new THREE.Raycaster();
-        const mouseVec = new THREE.Vector2();
+        // Mobile Touch Control Variables
+        let touchMoveX = 0, touchMoveY = 0;
+        let touchShoot = false, touchBoost = false;
 
-        // --- 2. 初期化 ---
-        function init() {
+        function setupMobileControls() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            let rect, centerX, centerY;
+
+            const updateCenter = () => {
+                rect = zone.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+            };
+
+            zone.addEventListener('touchstart', e => {
+                initAudio();
+                updateCenter();
+                handleJoystick(e.touches[0]);
+            }, { passive: false });
+
+            zone.addEventListener('touchmove', e => {
+                e.preventDefault();
+                handleJoystick(e.touches[0]);
+            }, { passive: false });
+
+            const resetJoystick = () => {
+                knob.style.transform = `translate(0px, 0px)`;
+                touchMoveX = 0;
+                touchMoveY = 0;
+            };
+
+            zone.addEventListener('touchend', resetJoystick);
+            zone.addEventListener('touchcancel', resetJoystick);
+
+            function handleJoystick(touch) {
+                const dx = touch.clientX - centerX;
+                const dy = touch.clientY - centerY;
+                const maxR = 40;
+                const dist = Math.hypot(dx, dy);
+                const angle = Math.atan2(dy, dx);
+                const r = Math.min(dist, maxR);
+
+                const kx = Math.cos(angle) * r;
+                const ky = Math.sin(angle) * r;
+                knob.style.transform = `translate(${kx}px, ${ky}px)`;
+
+                touchMoveX = kx / maxR; // -1 to 1 (Turning)
+                touchMoveY = -ky / maxR; // -1 to 1 (Forward/Back)
+            }
+
+            // Buttons
+            const btnShoot = document.getElementById('btn-shoot');
+            const btnBoost = document.getElementById('btn-boost');
+            const btnSkill = document.getElementById('btn-skill');
+
+            btnShoot.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); shoot(player, true); }, { passive: false });
+            btnBoost.addEventListener('touchstart', e => { e.preventDefault(); touchBoost = true; }, { passive: false });
+            btnBoost.addEventListener('touchend', e => { touchBoost = false; });
+            btnSkill.addEventListener('touchstart', e => { e.preventDefault(); triggerSpecialSkill(); }, { passive: false });
+        }
+
+        function createRealBike(bodyColor = 0x0088ff, isEnemy = false) {
+            const bike = new THREE.Group();
+            const color = isEnemy ? 0xdd2222 : bodyColor;
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.15, metalness: 0.8 });
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x111116, roughness: 0.6 });
+            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.95, roughness: 0.05 });
+            const tireMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 });
+
+            const cowl = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.6, 8), bodyMat);
+            cowl.rotation.x = Math.PI / 2; cowl.position.set(0, 0.85, 0.4); cowl.scale.set(1, 1, 0.8);
+            bike.add(cowl);
+
+            const tank = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.4, 0.8), bodyMat);
+            tank.position.set(0, 1.0, -0.2); bike.add(tank);
+
+            const engine = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.4, 0.6), chromeMat);
+            engine.position.set(0, 0.65, -0.1); bike.add(engine);
+
+            const createWheel = (z, radius, thickness) => {
+                const wGroup = new THREE.Group();
+                const tire = new THREE.Mesh(new THREE.TorusGeometry(radius, thickness, 12, 24), tireMat);
+                tire.rotation.y = Math.PI / 2; wGroup.add(tire);
+                wGroup.position.set(0, radius + 0.05, z);
+                return wGroup;
+            };
+
+            const frontWheel = createWheel(1.15, 0.4, 0.12);
+            const backWheel = createWheel(-1.0, 0.42, 0.16);
+            bike.add(frontWheel); bike.add(backWheel);
+            if (!isEnemy) rearWheelMesh = backWheel;
+
+            return bike;
+        }
+
+        function createDetailedTank(bodyColor = 0x2e4020, isEnemy = false) {
+            const tank = new THREE.Group();
+            const color = isEnemy ? 0x662222 : bodyColor;
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x111116 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 4.8), bodyMat);
+            body.position.y = 0.8; tank.add(body);
+
+            [-1.7, 1.7].forEach(x => {
+                const tread = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 5.0), darkMat);
+                tread.position.set(x, 0.65, 0); tank.add(tread);
+            });
+
+            const turret = new THREE.Group();
+            turret.position.set(0, 1.3, 0);
+            const tMesh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 2.2), bodyMat);
+            turret.add(tMesh);
+
+            const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.5), darkMat);
+            cannon.rotation.x = Math.PI / 2; cannon.position.set(0, 0.2, 2.0);
+            turret.add(cannon);
+
+            tank.add(turret);
+            if (!isEnemy) { playerTurret = turret; playerCannon = cannon; }
+            return tank;
+        }
+
+        function createMapObstacles() {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.8 });
+            for (let i = 0; i < 16; i++) {
+                const w = 6 + Math.random() * 6, h = 4 + Math.random() * 8, d = 6 + Math.random() * 6;
+                const obs = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 25 + Math.random() * 60;
+                obs.position.set(Math.sin(angle) * dist, h / 2, Math.cos(angle) * dist);
+                obs.userData = { radius: Math.max(w, d) / 2 + 1.2 };
+                scene.add(obs); obstacles.push(obs);
+            }
+        }
+
+        function initEngine() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0d0d11);
-            scene.fog = new THREE.FogExp2(0x0d0d11, 0.015);
+            scene.fog = new THREE.FogExp2(0x0f1923, 0.007);
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            document.body.appendChild(renderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambient);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xfffaed, 0.8);
+            dirLight.position.set(60, 100, 50); dirLight.castShadow = true; scene.add(dirLight);
 
-            const dirLight = new THREE.DirectionalLight(0xfff0dd, 0.8);
-            dirLight.position.set(20, 40, 20);
-            dirLight.castShadow = true;
-            scene.add(dirLight);
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x121a12, roughness: 0.9 }));
+            ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-            initTextureCanvas();
-            createLargeMuseumStage();
-            createStickmanPlayer();
-            createGuard();
-            initPaletteUI();
+            const grid = new THREE.GridHelper(500, 50, 0x00aaff, 0x113322);
+            grid.position.y = 0.01; scene.add(grid);
 
-            // キーボードイベント
-            window.addEventListener('keydown', e => {
-                keys[e.key.toLowerCase()] = true;
-                if (e.key === ' ') {
-                    if (isGrounded || isClingingToWall) {
-                        playerVelocityY = JUMP_POWER;
-                        isGrounded = false;
-                        isClingingToWall = false;
-                    }
-                }
-                if (e.key === '1') setPose(1);
-                if (e.key === '2') setPose(2);
-                if (e.key === '3') setPose(3);
-            });
-            window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            createMapObstacles();
+            setupMobileControls();
 
-            // マウス操作（視点＆ペイント分離）
-            const dom = renderer.domElement;
-            dom.addEventListener('contextmenu', e => e.preventDefault()); // 右クリックメニュー無効化
-            dom.addEventListener('mousedown', onMouseDown);
-            dom.addEventListener('mousemove', onMouseMove);
-            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('keydown', e => { initAudio(); keys[e.code] = true; });
+            window.addEventListener('keyup', e => keys[e.code] = false);
             window.addEventListener('resize', onWindowResize);
+        }
 
+        function startGame() {
+            initAudio();
+            document.getElementById('select-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+
+            let hpMod = 1.0, speedMod = 1.0, dmgMod = 1.0;
+            if (selectedSpec === 'SPEED') { speedMod = 1.2; hpMod = 0.85; }
+            if (selectedSpec === 'ARMOR') { hpMod = 1.3; speedMod = 0.9; }
+            if (selectedSpec === 'POWER') { dmgMod = 1.3; cooldownMult = 1.25; }
+
+            if (selectedMachine === 'TANK') {
+                player = createDetailedTank(selectedColorHex, false);
+                maxHp = 100 * hpMod; playerHp = maxHp;
+                maxSpeed = 0.22 * speedMod; rotSpeed = 0.025;
+                attackDamage = 40 * dmgMod;
+            } else {
+                player = createRealBike(selectedColorHex, false);
+                maxHp = 60 * hpMod; playerHp = maxHp;
+                maxSpeed = 0.48 * speedMod; rotSpeed = 0.045;
+                attackDamage = 12 * dmgMod;
+            }
+
+            scene.add(player);
+            updatePlayerHPUI();
+
+            if (playMode === 'OFFLINE') {
+                spawnEnemy('BIKE', 'AI_RIDER_A');
+                spawnEnemy('TANK', 'AI_TANK_B');
+            } else {
+                // Online Enemy Spawn
+                const remoteType = selectedMachine === 'TANK' ? 'BIKE' : 'TANK';
+                remoteEnemyMesh = remoteType === 'BIKE' ? createRealBike(0xff2222, true) : createDetailedTank(0x662222, true);
+                remoteEnemyMesh.userData = { type: remoteType, hp: 100, maxHp: 100, radius: 2.5 };
+                scene.add(remoteEnemyMesh);
+                enemies.push(remoteEnemyMesh);
+
+                const container = document.getElementById('enemy-hp-container');
+                container.innerHTML = `<div class="enemy-hp-card"><div>RIVAL ONLINE</div><div class="enemy-hp-bar-bg"><div class="enemy-hp-bar-fill" id="hp-fill-0"></div></div></div>`;
+            }
+
+            startBGM();
+            gameState = 'PLAYING';
             animate();
         }
 
-        // --- 3. 動的キャンバス（完全真っ白） ---
-        function initTextureCanvas() {
-            texCanvas = document.createElement('canvas');
-            texCanvas.width = 256; texCanvas.height = 256;
-            texCtx = texCanvas.getContext('2d');
-            resetPlayerColor();
+        function spawnEnemy(type, name) {
+            let enemyObj;
+            const angle = Math.random() * Math.PI * 2, dist = 55 + Math.random() * 20;
 
-            canvasTex = new THREE.CanvasTexture(texCanvas);
-            canvasTex.needsUpdate = true;
-        }
-
-        function resetPlayerColor() {
-            texCtx.fillStyle = '#ffffff';
-            texCtx.fillRect(0, 0, 256, 256); // 完全な真っ白
-            if (canvasTex) canvasTex.needsUpdate = true;
-        }
-
-        function setBrushSize(size, btn) {
-            currentBrushSize = size;
-            document.querySelectorAll('.brush-size-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-
-        function initPaletteUI() {
-            const container = document.getElementById('palette-colors');
-            paletteColors.forEach((color, idx) => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch' + (idx === 1 ? ' selected' : '');
-                swatch.style.backgroundColor = color;
-                swatch.onclick = () => {
-                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-                    swatch.classList.add('selected');
-                    currentColor = color;
-                };
-                container.appendChild(swatch);
-            });
-        }
-
-        // --- 4. 完全真っ白な棒人間 ---
-        function createStickmanPlayer() {
-            player = new THREE.Group();
-
-            const pMat = new THREE.MeshStandardMaterial({
-                map: canvasTex,
-                roughness: 0.2,
-                metalness: 0.0
-            });
-
-            headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), pMat);
-            headMesh.position.y = 2.0;
-            headMesh.castShadow = true;
-            player.add(headMesh);
-
-            bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 1.2, 24), pMat);
-            bodyMesh.position.y = 1.0;
-            bodyMesh.castShadow = true;
-            player.add(bodyMesh);
-
-            function createLimb() {
-                const g = new THREE.Group();
-                const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.9, 16), pMat);
-                m.position.y = -0.45;
-                m.castShadow = true;
-                g.add(m);
-                return g;
+            if (type === 'BIKE') {
+                enemyObj = createRealBike(0xdd2222, true);
+                enemyObj.userData = { type: 'BIKE', name: name, hp: 45, maxHp: 45, speed: 0.24, radius: 2.2 };
+            } else {
+                enemyObj = createDetailedTank(0x662222, true);
+                enemyObj.userData = { type: 'TANK', name: name, hp: 130, maxHp: 130, speed: 0.09, radius: 3.5, shootCooldown: 0 };
             }
 
-            armR = createLimb(); armR.position.set(0.5, 1.4, 0); player.add(armR);
-            armL = createLimb(); armL.position.set(-0.5, 1.4, 0); player.add(armL);
-            legR = createLimb(); legR.position.set(0.25, 0.45, 0); player.add(legR);
-            legL = createLimb(); legL.position.set(-0.25, 0.45, 0); player.add(legL);
+            enemyObj.position.x = Math.sin(angle) * dist;
+            enemyObj.position.z = Math.cos(angle) * dist;
+            scene.add(enemyObj); enemies.push(enemyObj);
 
-            player.position.set(0, 0, 20);
-            scene.add(player);
-
-            setPose(1); // 初期ポーズ
+            const container = document.getElementById('enemy-hp-container');
+            const card = document.createElement('div');
+            card.className = 'enemy-hp-card';
+            card.innerHTML = `<div>${name}</div><div class="enemy-hp-bar-bg"><div class="enemy-hp-bar-fill" id="hp-fill-${enemies.indexOf(enemyObj)}"></div></div>`;
+            container.appendChild(card);
         }
 
-        // 1, 2, 3 キーでのポーズ切り替え
-        function setPose(idx) {
-            if (isGameOver || isClear) return;
-            currentPoseIndex = idx;
+        let lastShotTime = 0;
+        function shoot(shooter, isPlayer = false, customDir = null) {
+            const now = Date.now();
+            const isHeavy = (isPlayer && selectedMachine === 'TANK') || (!isPlayer && shooter.userData.type === 'TANK');
+            let coolTime = (isHeavy ? 480 : 120) * (isPlayer ? cooldownMult : 1.0);
 
-            if (idx === 1) { // 1: 直立
-                armR.rotation.set(0, 0, -0.3); armL.rotation.set(0, 0, 0.3);
-                legR.rotation.set(0, 0, -0.05); legL.rotation.set(0, 0, 0.05);
-            } else if (idx === 2) { // 2: 額縁ポーズ (T字)
-                armR.rotation.set(0, 0, -Math.PI/2); armL.rotation.set(0, 0, Math.PI/2);
-                legR.rotation.set(0,0,0); legL.rotation.set(0,0,0);
-            } else if (idx === 3) { // 3: 彫刻ポーズ (思考者)
-                armR.rotation.set(1.2, -0.5, -0.4); armL.rotation.set(0.5, 0.2, 0.2);
-                legR.rotation.set(-0.8, 0, 0.2); legL.rotation.set(-0.4, 0, -0.2);
+            if (isPlayer && !customDir && now - lastShotTime < coolTime) return;
+            if (isPlayer && !customDir) lastShotTime = now;
+
+            playShootSound(isHeavy);
+            if (isPlayer) {
+                camShake = Math.min(camShake + (isHeavy ? 0.3 : 0.08), 0.8);
+                if (playMode === 'ONLINE') sendNetworkData({ type: 'SHOOT' });
             }
-        }
 
-        // --- 5. ステージ生成 ---
-        function createLargeMuseumStage() {
-            const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(60, 60),
-                new THREE.MeshStandardMaterial({ color: 0x221a15, roughness: 0.3 })
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(isHeavy ? 0.38 : 0.2, 8, 8),
+                new THREE.MeshBasicMaterial({ color: isPlayer ? 0xffff00 : 0xff3300 })
             );
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
 
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1f2a38, roughness: 0.8 });
-            createWall(0, 8, -30, 60, 16, 1, wallMat);
-            createWall(-30, 8, 0, 1, 16, 60, wallMat);
-            createWall(30, 8, 0, 1, 16, 60, wallMat);
+            const dir = customDir || new THREE.Vector3(0, 0, 1).applyQuaternion(shooter.quaternion);
+            bullet.position.copy(shooter.position).add(new THREE.Vector3(0, 1.2, 0)).add(dir.clone().multiplyScalar(2.5));
 
-            // 内壁
-            createWall(-10, 8, 0, 1, 16, 30, wallMat);
-            createWall(10, 8, -10, 1, 16, 30, wallMat);
+            bullet.userData = {
+                velocity: dir.multiplyScalar(isHeavy ? 1.4 : 1.8),
+                life: 80, isPlayerBullet: isPlayer,
+                damage: isPlayer ? attackDamage : (isHeavy ? 30 : 10),
+                hitRadius: isHeavy ? 2.8 : 2.0
+            };
 
-            // 展示物
-            createArtFrame(-29.2, 5, 10, 6, 8, '#ff3366', 2, "赤の絵画");
-            createArtFrame(0, 5, -29.2, 8, 6, '#33aaff', 2, "青の絵画");
-            createStatueSpot(20, 0, 5, '#f1c40f', 3, "黄金の思考像");
+            scene.add(bullet); bullets.push(bullet);
         }
 
-        function createWall(x, y, z, w, h, d, mat) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-            mesh.position.set(x, y, z);
-            mesh.receiveShadow = true; mesh.castShadow = true;
-            scene.add(mesh);
-            walls.push(mesh);
-        }
+        function triggerSpecialSkill() {
+            if (skillGauge < 100 || isSkillActive) return;
+            skillGauge = 0; updateSkillUI();
+            isSkillActive = true; skillTimer = 200;
+            playSkillSound();
 
-        function createArtFrame(x, y, z, w, h, mainColor, targetPoseIdx, name) {
-            const group = new THREE.Group();
-            const frame = new THREE.Mesh(
-                new THREE.BoxGeometry(w + 0.6, h + 0.6, 0.3),
-                new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8 })
-            );
-            group.add(frame);
-
-            const canvasMesh = new THREE.Mesh(
-                new THREE.PlaneGeometry(w, h),
-                new THREE.MeshStandardMaterial({ color: mainColor })
-            );
-            canvasMesh.position.z = 0.16;
-            group.add(canvasMesh);
-
-            group.position.set(x, y, z);
-            if (x < -25) group.rotation.y = Math.PI / 2;
-            scene.add(group);
-
-            artExhibits.push({
-                position: new THREE.Vector3(x + (x < -25 ? 1.8 : 0), y - 3, z),
-                targetColorHex: mainColor,
-                requiredPose: targetPoseIdx,
-                name: name
-            });
-        }
-
-        function createStatueSpot(x, y, z, mainColor, targetPoseIdx, name) {
-            const ped = new THREE.Mesh(
-                new THREE.CylinderGeometry(2, 2.2, 1.2, 32),
-                new THREE.MeshStandardMaterial({ color: 0x151515 })
-            );
-            ped.position.set(x, 0.6, z);
-            scene.add(ped);
-
-            const bg = new THREE.Mesh(
-                new THREE.BoxGeometry(0.2, 7, 5),
-                new THREE.MeshStandardMaterial({ color: mainColor })
-            );
-            bg.position.set(x + 1.5, 3.5, z);
-            scene.add(bg);
-
-            artExhibits.push({
-                position: new THREE.Vector3(x, 0, z),
-                targetColorHex: mainColor,
-                requiredPose: targetPoseIdx,
-                name: name
-            });
-        }
-
-        function createGuard() {
-            guard = new THREE.Group();
-            const body = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.6, 0.6, 1.8, 16),
-                new THREE.MeshStandardMaterial({ color: 0x2c3e50 })
-            );
-            body.position.y = 0.9;
-            guard.add(body);
-
-            const coneGeo = new THREE.ConeGeometry(5, 16, 16, 1, true);
-            coneGeo.rotateX(-Math.PI / 2);
-            coneGeo.translate(0, 0, 8);
-            flashlightCone = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({
-                color: 0xff3344, transparent: true, opacity: 0.35, side: THREE.DoubleSide
-            }));
-            flashlightCone.position.set(0, 1.5, 0);
-            guard.add(flashlightCone);
-
-            guard.position.set(0, 0, -20);
-            guard.visible = false;
-            scene.add(guard);
-        }
-
-        // --- 6. マウス操作の完全修正（右：カメラ / 左：ペイント） ---
-        function onMouseDown(e) {
-            if (!isGameStarted || isGameOver || isClear) return;
-            previousMouseX = e.clientX;
-            previousMouseY = e.clientY;
-
-            if (e.button === 2) { // 右クリックドラッグ -> 視点移動
-                isRightMouseDown = true;
-            } else if (e.button === 0) { // 左クリック -> 直接ペイント
-                isLeftMouseDown = true;
-                paintOnPlayer(e);
-            }
-        }
-
-        function onMouseMove(e) {
-            if (isRightMouseDown) {
-                const deltaX = e.clientX - previousMouseX;
-                const deltaY = e.clientY - previousMouseY;
-
-                // 適切な感度に調整
-                cameraAngleY -= deltaX * 0.003;
-                cameraAngleX = Math.max(0.05, Math.min(1.2, cameraAngleX + deltaY * 0.003));
-
-                previousMouseX = e.clientX;
-                previousMouseY = e.clientY;
-            } else if (isLeftMouseDown) {
-                paintOnPlayer(e);
-            }
-        }
-
-        function onMouseUp(e) {
-            if (e.button === 2) isRightMouseDown = false;
-            if (e.button === 0) isLeftMouseDown = false;
-        }
-
-        function paintOnPlayer(e) {
-            mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouseVec, camera);
-
-            const intersects = raycaster.intersectObjects(player.children, true);
-            if (intersects.length > 0) {
-                const uv = intersects[0].uv;
-                if (uv) {
-                    const x = uv.x * 256;
-                    const y = (1 - uv.y) * 256;
-                    texCtx.fillStyle = currentColor;
-                    texCtx.beginPath();
-                    texCtx.arc(x, y, currentBrushSize, 0, Math.PI * 2);
-                    texCtx.fill();
-                    canvasTex.needsUpdate = true;
+            if (selectedMachine === 'TANK') {
+                for (let i = 0; i < 10; i++) {
+                    const angle = (Math.PI * 2 / 10) * i;
+                    shoot(player, true, new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)));
                 }
+                isSkillActive = false;
             }
         }
 
-        // --- 7. メイン処理 & 物理計算 ---
-        function startGame() {
-            document.getElementById('title-screen').style.display = 'none';
-            isGameStarted = true;
+        function createExplosion(pos) {
+            playExplosionSound();
+            camShake = Math.min(camShake + 0.4, 1.2);
+            for (let i = 0; i < 12; i++) {
+                const p = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.3 + 0.1, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff5500 }));
+                p.position.copy(pos);
+                p.userData = { vel: new THREE.Vector3((Math.random() - 0.5) * 0.6, Math.random() * 0.4, (Math.random() - 0.5) * 0.6), life: 20 };
+                scene.add(p); particles.push(p);
+            }
+        }
 
-            timerInterval = setInterval(() => {
-                if (!isGameStarted || isGameOver || isClear) return;
+        function drawMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 90, 90);
 
-                if (!guardActive) {
-                    spawnCountdown--;
-                    document.getElementById('guard-status').innerText = `鬼出現まで: ${spawnCountdown}秒`;
-                    if (spawnCountdown <= 0) {
-                        guardActive = true;
-                        guard.visible = true;
-                        document.getElementById('guard-status').innerText = `⚠️ 鬼が巡回中！隠れろ！`;
-                    }
-                } else {
-                    surviveTime--;
-                    const mins = Math.floor(surviveTime / 60).toString().padStart(2, '0');
-                    const secs = (surviveTime % 60).toString().padStart(2, '0');
-                    document.getElementById('timer-display').innerText = `${mins}:${secs}`;
+            const scale = 90 / 220, cx = 45, cy = 45;
 
-                    if (surviveTime <= 0) gameClear();
-                }
-            }, 1000);
+            ctx.fillStyle = '#ff3333';
+            enemies.forEach(e => {
+                const x = cx + (e.position.x - player.position.x) * scale;
+                const y = cy + (e.position.z - player.position.z) * scale;
+                ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+            });
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
         }
 
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isGameStarted && !isGameOver && !isClear) {
-                updatePhysicsAndMovement();
-                updateTPSCamera();
-                if (guardActive) updateGuardPatrol();
-                checkStealthAndDetection();
+            if (gameState !== 'PLAYING') return;
+
+            // Online Position Sync
+            if (playMode === 'ONLINE') {
+                sendNetworkData({
+                    type: 'SYNC_POS',
+                    x: player.position.x,
+                    z: player.position.z,
+                    rotY: player.rotation.y,
+                    hp: playerHp
+                });
+
+                if (remoteEnemyMesh) {
+                    remoteEnemyMesh.position.x += (remotePlayerData.x - remoteEnemyMesh.position.x) * 0.3;
+                    remoteEnemyMesh.position.z += (remotePlayerData.z - remoteEnemyMesh.position.z) * 0.3;
+                    remoteEnemyMesh.rotation.y = remotePlayerData.rotY;
+                }
             }
 
+            // Controls (Keyboard + Mobile Joystick)
+            let moveY = touchMoveY;
+            let turnX = -touchMoveX;
+
+            if (keys['KeyW']) moveY = 1;
+            if (keys['KeyS']) moveY = -0.5;
+            if (keys['KeyA']) turnX = 1;
+            if (keys['KeyD']) turnX = -1;
+            if (keys['Space']) shoot(player, true);
+            if (keys['KeyE']) triggerSpecialSkill();
+
+            let currentMaxSpeed = maxSpeed * (touchBoost || keys['ShiftLeft'] ? 1.35 : 1.0);
+
+            if (moveY !== 0) playerSpeed = Math.min(Math.max(playerSpeed + moveY * 0.015, -currentMaxSpeed * 0.5), currentMaxSpeed);
+            else playerSpeed *= 0.92;
+
+            if (turnX !== 0) player.rotation.y += turnX * rotSpeed;
+
+            const oldPos = player.position.clone();
+            player.translateZ(playerSpeed);
+
+            obstacles.forEach(o => {
+                if (player.position.distanceTo(o.position) < o.userData.radius) {
+                    player.position.copy(oldPos); playerSpeed = 0;
+                }
+            });
+
+            if (skillGauge < 100) { skillGauge = Math.min(100, skillGauge + 0.08); updateSkillUI(); }
+
+            // Camera follow + shake
+            const camDist = selectedMachine === 'TANK' ? -14 : -9;
+            const camHeight = selectedMachine === 'TANK' ? 7 : 4;
+            const camOffset = new THREE.Vector3(0, camHeight, camDist).applyQuaternion(player.quaternion);
+
+            if (camShake > 0) {
+                camOffset.x += (Math.random() - 0.5) * camShake;
+                camOffset.y += (Math.random() - 0.5) * camShake;
+                camShake = Math.max(0, camShake - 0.03);
+            }
+
+            camera.position.copy(player.position).add(camOffset);
+            camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 1.0, 0)));
+
+            // Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.position.add(b.userData.velocity);
+                b.userData.life--;
+
+                if (b.userData.isPlayerBullet) {
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const enemy = enemies[j];
+                        if (b.position.distanceTo(enemy.position.clone().add(new THREE.Vector3(0, 0.8, 0))) < (b.userData.hitRadius + enemy.userData.radius)) {
+                            createExplosion(b.position);
+                            enemy.userData.hp -= b.userData.damage;
+                            skillGauge = Math.min(100, skillGauge + 12); updateSkillUI();
+
+                            const fill = document.getElementById(`hp-fill-${j}`);
+                            if (fill) fill.style.width = Math.max(0, (enemy.userData.hp / enemy.userData.maxHp) * 100) + '%';
+
+                            if (enemy.userData.hp <= 0) {
+                                createExplosion(enemy.position); scene.remove(enemy); enemies.splice(j, 1);
+                                if (enemies.length === 0) triggerGameEnd(true);
+                            }
+                            scene.remove(b); bullets.splice(i, 1); break;
+                        }
+                    }
+                } else {
+                    if (b.position.distanceTo(player.position.clone().add(new THREE.Vector3(0, 0.8, 0))) < 2.2) {
+                        createExplosion(b.position); damagePlayer(b.userData.damage);
+                        scene.remove(b); bullets.splice(i, 1); continue;
+                    }
+                }
+
+                if (b.userData.life <= 0 && bullets[i]) { scene.remove(b); bullets.splice(i, 1); }
+            }
+
+            // AI Enemies (Offline Mode)
+            if (playMode === 'OFFLINE') {
+                enemies.forEach(enemy => {
+                    enemy.lookAt(player.position);
+                    const dist = enemy.position.distanceTo(player.position);
+                    if (enemy.userData.type === 'BIKE') {
+                        enemy.translateZ(enemy.userData.speed);
+                        if (dist < 2.5) damagePlayer(0.5);
+                    } else {
+                        if (dist > 16) enemy.translateZ(enemy.userData.speed);
+                        enemy.userData.shootCooldown++;
+                        if (enemy.userData.shootCooldown > 90) {
+                            shoot(enemy, false); enemy.userData.shootCooldown = 0;
+                        }
+                    }
+                });
+            }
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.userData.vel); p.userData.life--;
+                p.scale.multiplyScalar(0.92);
+                if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); }
+            }
+
+            drawMinimap();
             renderer.render(scene, camera);
         }
 
-        // 移動・重力・壁貼り付き処理
-        function updatePhysicsAndMovement() {
-            const speed = 0.15;
-            let moveX = 0, moveZ = 0;
-
-            if (keys['w'] || keys['arrowup']) moveZ -= speed;
-            if (keys['s'] || keys['arrowdown']) moveZ += speed;
-            if (keys['a'] || keys['arrowleft']) moveX -= speed;
-            if (keys['d'] || keys['arrowright']) moveX += speed;
-
-            // 壁との近接判定（壁貼り付き用）
-            let nearWall = false;
-            walls.forEach(w => {
-                const box = new THREE.Box3().setFromObject(w);
-                const playerBox = new THREE.Box3().setFromObject(player);
-                playerBox.expandByScalar(0.3);
-                if (box.intersectsBox(playerBox)) nearWall = true;
-            });
-
-            // Shiftキーで壁貼り付き
-            if (keys['shift'] && nearWall) {
-                isClingingToWall = true;
-                playerVelocityY = 0; // 空中で停止
-            } else {
-                isClingingToWall = false;
-            }
-
-            // 重力計算
-            if (!isGrounded && !isClingingToWall) {
-                playerVelocityY += GRAVITY;
-                player.position.y += playerVelocityY;
-
-                if (player.position.y <= 0) {
-                    player.position.y = 0;
-                    playerVelocityY = 0;
-                    isGrounded = true;
-                }
-            }
-
-            // 移動計算
-            if (moveX !== 0 || moveZ !== 0) {
-                const angle = cameraAngleY;
-                const rx = moveX * Math.cos(angle) - moveZ * Math.sin(angle);
-                const rz = moveX * Math.sin(angle) + moveZ * Math.cos(angle);
-
-                player.position.x += rx;
-                player.position.z += rz;
-                player.rotation.y = Math.atan2(rx, rz);
-            }
-
-            // エリア制限
-            player.position.x = Math.max(-28, Math.min(28, player.position.x));
-            player.position.z = Math.max(-28, Math.min(28, player.position.z));
+        function damagePlayer(amount) {
+            playerHp = Math.max(0, playerHp - amount);
+            updatePlayerHPUI();
+            if (playerHp <= 0) triggerGameEnd(false);
         }
 
-        function updateTPSCamera() {
-            const dist = 8;
-            camera.position.x = player.position.x + dist * Math.sin(cameraAngleY) * Math.cos(cameraAngleX);
-            camera.position.y = player.position.y + dist * Math.sin(cameraAngleX) + 1.5;
-            camera.position.z = player.position.z + dist * Math.cos(cameraAngleY) * Math.cos(cameraAngleX);
-            camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
+        function updatePlayerHPUI() {
+            const percent = Math.max(0, (playerHp / maxHp) * 100);
+            document.getElementById('player-hp-fill').style.width = percent + '%';
+            document.getElementById('player-hp-text').innerText = `${Math.ceil(playerHp)} / ${Math.ceil(maxHp)}`;
         }
 
-        function updateGuardPatrol() {
-            const t = Date.now() * 0.0008;
-            guard.position.x = Math.sin(t) * 18;
-            guard.position.z = Math.cos(t * 0.7) * 18;
-            guard.rotation.y = t * 1.5;
+        function updateSkillUI() {
+            document.getElementById('skill-bar-fill').style.width = skillGauge + '%';
         }
 
-        function checkStealthAndDetection() {
-            let bestStealthScore = 0;
+        function triggerGameEnd(isWin) {
+            gameState = isWin ? 'VICTORY' : 'DEFEAT';
+            clearInterval(bgmInterval);
 
-            artExhibits.forEach(exhibit => {
-                const dist = player.position.distanceTo(exhibit.position);
-                if (dist < 3.5) {
-                    let score = 0;
-
-                    if (currentPoseIndex === exhibit.requiredPose) score += 50;
-
-                    const pData = texCtx.getImageData(128, 128, 1, 1).data;
-                    const rgbHex = '#' + ((1 << 24) + (pData[0] << 16) + (pData[1] << 8) + pData[2]).toString(16).slice(1);
-                    
-                    if (rgbHex.toLowerCase() === exhibit.targetColorHex.toLowerCase()) score += 50;
-
-                    if (score > bestStealthScore) bestStealthScore = score;
-                }
-            });
-
-            document.getElementById('meter-bar-fill').style.width = bestStealthScore + '%';
-            document.getElementById('stealth-text').innerText = bestStealthScore + '%';
-
-            if (guardActive) {
-                const diff = new THREE.Vector3().subVectors(player.position, guard.position);
-                if (diff.length() < 14) {
-                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(guard.quaternion);
-                    if (forward.angleTo(diff.normalize()) < 0.5) {
-                        if (bestStealthScore < 80) gameOver();
-                    }
-                }
-            }
-        }
-
-        function gameOver() {
-            isGameOver = true;
-            clearInterval(timerInterval);
-            document.getElementById('game-over-screen').classList.add('active');
-        }
-
-        function gameClear() {
-            isClear = true;
-            clearInterval(timerInterval);
-            document.getElementById('clear-screen').classList.add('active');
-        }
-
-        function restartGame() {
-            location.reload();
+            setTimeout(() => {
+                const screen = document.getElementById('result-screen');
+                const title = document.getElementById('result-title');
+                screen.style.display = 'flex';
+                title.innerText = isWin ? 'VICTORY!' : 'GAME OVER';
+                title.style.color = isWin ? '#00ffcc' : '#ff3300';
+            }, 800);
         }
 
         function onWindowResize() {
@@ -756,7 +1180,13 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        window.onload = init;
+        initEngine();
     </script>
 </body>
 </html>
+'''
+
+with open("opposition_war_v2.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("File created successfully: opposition_war_v2.html")
