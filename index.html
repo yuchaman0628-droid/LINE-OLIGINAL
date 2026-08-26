@@ -179,7 +179,6 @@
 
 <div class="app-container">
 
-  <!-- 1. ホーム画面 -->
   <div id="home-screen" class="screen active">
     <div class="home-header">
       <span>ホーム</span>
@@ -189,7 +188,6 @@
       </div>
     </div>
 
-    <!-- プロフィール -->
     <div class="my-profile-card" onclick="openProfileModal()">
       <div class="avatar" id="my-avatar-disp">👤</div>
       <div class="profile-info">
@@ -199,7 +197,6 @@
       <span style="font-size: 12px; color: #aaa;">編集 ✏️</span>
     </div>
 
-    <!-- ID表示 & フレンド追加 -->
     <div class="id-section">
       <div>あなたのID:</div>
       <div class="id-box">
@@ -207,19 +204,16 @@
         <button class="btn" onclick="copyMyId()">コピー</button>
       </div>
       <div class="input-group">
-        <!-- 初期値として user- をセット -->
         <input type="text" id="friend-id-input" value="user-" placeholder="相手のIDを入力...">
         <button class="btn" onclick="addAndConnectFriend()">追加</button>
       </div>
     </div>
 
-    <!-- アクションバー -->
     <div class="action-bar">
       <button class="btn btn-secondary" style="flex: 1;" onclick="openGroupModal()">＋ グループ作成</button>
       <button class="btn btn-danger" onclick="clearAllData()">履歴クリア</button>
     </div>
 
-    <!-- トーク一覧 -->
     <div class="list-container">
       <div class="section-title">グループ</div>
       <div id="group-list"></div>
@@ -229,7 +223,6 @@
     </div>
   </div>
 
-  <!-- 2. チャット画面 -->
   <div id="chat-screen" class="screen">
     <div class="chat-header">
       <button class="back-btn" onclick="openHome()">◀ 戻る</button>
@@ -275,7 +268,6 @@
     </div>
   </div>
 
-  <!-- モーダル: プロフィール編集 -->
   <div class="modal-overlay" id="profile-modal">
     <div class="modal">
       <h3>プロフィール編集</h3>
@@ -294,7 +286,6 @@
     </div>
   </div>
 
-  <!-- モーダル: 新規グループ作成 -->
   <div class="modal-overlay" id="group-modal">
     <div class="modal">
       <h3>グループ作成</h3>
@@ -308,7 +299,6 @@
     </div>
   </div>
 
-  <!-- モーダル: グループメンバー追加 -->
   <div class="modal-overlay" id="add-member-modal">
     <div class="modal">
       <h3>メンバーを追加</h3>
@@ -321,12 +311,10 @@
     </div>
   </div>
 
-  <!-- 画像拡大モーダル -->
   <div class="image-viewer" id="image-viewer" onclick="closeImageViewer()">
     <img id="image-viewer-img" src="" alt="拡大画像">
   </div>
 
-  <!-- 音声・ビデオ通話モーダル -->
   <div class="call-modal" id="call-modal">
     <div class="video-container" id="video-container" style="display: none;">
       <video id="remote-video" class="remote-video" autoplay playsinline></video>
@@ -370,6 +358,7 @@
   let isRecording = false;
   let recordTimer = null;
   let recordSeconds = 0;
+  let audioStream = null;
 
   // 通話関連変数
   let currentCall = null;
@@ -709,9 +698,9 @@
     const file = event.target.files[0];
     if (!file) return;
 
-    // 動画ファイル容量チェック (15MB超過時はエラー警告)
-    if (file.size > 15 * 1024 * 1024) {
-      alert("動画サイズが大きすぎます。15MB以下の動画を選択してください。");
+    // 動画ファイル容量チェック (1GB超過時はエラー警告)
+    if (file.size > 1024 * 1024 * 1024) {
+      alert("動画サイズが大きすぎます。1GB以下の動画を選択してください。");
       event.target.value = '';
       return;
     }
@@ -763,19 +752,15 @@
 
   async function startRecording() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder = new MediaRecorder(audioStream);
 
       mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0) audioChunks.push(e.data);
+        if (e.data && e.data.size > 0) audioChunks.push(e.data);
       };
 
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
+      mediaRecorder.start(100);
       isRecording = true;
       recordSeconds = 0;
       document.getElementById('recording-time').textContent = '0s';
@@ -797,13 +782,18 @@
     
     mediaRecorder.onstop = () => {
       clearInterval(recordTimer);
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        dispatchMessage(reader.result, false, false, false, false, true);
-      };
-      reader.readAsDataURL(audioBlob);
-
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+      }
+      if (audioChunks.length > 0) {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          dispatchMessage(reader.result, false, false, false, false, true);
+        };
+        reader.readAsDataURL(audioBlob);
+      }
       resetRecordingState();
     };
 
@@ -813,7 +803,13 @@
   function cancelRecording() {
     if (mediaRecorder && isRecording) {
       clearInterval(recordTimer);
-      mediaRecorder.onstop = () => resetRecordingState();
+      mediaRecorder.onstop = () => {
+        if (audioStream) {
+          audioStream.getTracks().forEach(track => track.stop());
+          audioStream = null;
+        }
+        resetRecordingState();
+      };
       mediaRecorder.stop();
     } else {
       resetRecordingState();
