@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ Ultimate Fix</title>
+  <title>LINE風チャットアプリ Large File Fix</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -22,7 +22,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background-color 0.3s; }
 
-    /* ダークモード定義 */
     body.dark-mode {
       --bg-color: #1a232a;
       --header-bg: #11181c;
@@ -87,7 +86,7 @@
     .chat-messages { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
     
     .message { display: flex; align-items: flex-end; gap: 6px; max-width: 80%; }
-    .message-content { padding: 8px 12px; border-radius: 16px; font-size: 14px; line-height: 1.4; word-break: break-word; color: var(--text-color); }
+    .message-content { padding: 8px 12px; border-radius: 16px; font-size: 14px; line-height: 1.4; word-break: break-word; color: var(--text-color); position: relative; }
     .message-meta { display: flex; flex-direction: column; align-items: flex-end; font-size: 10px; color: var(--time-color); white-space: nowrap; }
     .read-status { color: #2b5278; font-weight: bold; font-size: 9px; }
     body.dark-mode .read-status { color: #64b5f6; }
@@ -103,6 +102,11 @@
     .message-video { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; background: #000; }
     .message-audio { max-width: 200px; height: 40px; }
 
+    /* 進捗プログレスバー */
+    .progress-box { width: 180px; padding: 6px; font-size: 12px; text-align: center; }
+    .progress-bar-bg { width: 100%; height: 6px; background: rgba(0,0,0,0.15); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+    .progress-bar-fill { height: 100%; width: 0%; background: var(--line-green); transition: width 0.2s; }
+
     /* システム通知メッセージ */
     .system-msg { align-self: center; background: rgba(0,0,0,0.3); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin: 4px 0; }
 
@@ -112,7 +116,6 @@
     .chat-input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 14px; outline: none; font-size: 14px; background: var(--card-bg); color: var(--text-color); }
     .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 2px; }
 
-    /* 録音表示インジケーター */
     .recording-bar {
       display: none; align-items: center; justify-content: space-between; padding: 8px 14px;
       background: #ffebee; color: #c62828; font-size: 13px; font-weight: bold;
@@ -136,12 +139,10 @@
     .modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
     .member-select-list { max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); padding: 6px; border-radius: 6px; }
 
-    /* 画像全画面表示 */
     .image-viewer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; }
     .image-viewer.active { display: flex; }
     .image-viewer img { max-width: 90%; max-height: 80%; border-radius: 8px; }
 
-    /* 通話画面モーダル */
     .call-modal {
       display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: #111; z-index: 300; flex-direction: column; justify-content: space-between; align-items: center;
@@ -207,7 +208,6 @@
         <button class="btn" onclick="copyMyId()">コピー</button>
       </div>
       <div class="input-group">
-        <!-- 初期値として user- をセット -->
         <input type="text" id="friend-id-input" value="user-" placeholder="相手のIDを入力...">
         <button class="btn" onclick="addAndConnectFriend()">追加</button>
       </div>
@@ -348,7 +348,7 @@
 </div>
 
 <script>
-  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V3';
+  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V4';
 
   let peer = null;
   let myId = '';
@@ -358,7 +358,7 @@
   let friends = {};
   let groups = {};
   let messages = {};
-  let wallpapers = {}; // 背景画像保存用
+  let wallpapers = {};
   let isDarkMode = false;
 
   let activeTargetId = null;
@@ -375,6 +375,44 @@
   let currentCall = null;
   let localStream = null;
   let incomingCall = null;
+
+  // 大容量ファイル送受信バッファ
+  let incomingFileBuffers = {};
+  let db = null;
+
+  // IndexedDBの初期化 (大容量ファイルのローカル保存用)
+  function initIDB() {
+    return new Promise((resolve) => {
+      const request = indexedDB.open('ChatMediaDB', 1);
+      request.onupgradeneeded = (e) => {
+        const idb = e.target.result;
+        if (!idb.objectStoreNames.contains('files')) {
+          idb.createObjectStore('files');
+        }
+      };
+      request.onsuccess = (e) => {
+        db = e.target.result;
+        resolve();
+      };
+      request.onerror = () => resolve();
+    });
+  }
+
+  function saveFileToIDB(id, blob) {
+    if (!db) return;
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(blob, id);
+  }
+
+  function getFileFromIDB(id) {
+    return new Promise((resolve) => {
+      if (!db) return resolve(null);
+      const tx = db.transaction('files', 'readonly');
+      const req = tx.objectStore('files').get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  }
 
   function renderAvatarHTML(avatarData) {
     if (avatarData && typeof avatarData === 'string' && avatarData.startsWith('data:image/')) {
@@ -461,6 +499,7 @@
   function clearAllData() {
     if (confirm("すべてのデータを初期化しますか？")) {
       localStorage.removeItem(STORAGE_KEY);
+      if (db) indexedDB.deleteDatabase('ChatMediaDB');
       location.reload();
     }
   }
@@ -483,7 +522,8 @@
     } catch (e) {}
   }
 
-  function initPeer() {
+  async function initPeer() {
+    await initIDB();
     loadStoredData();
     checkNotificationPermission();
 
@@ -501,7 +541,6 @@
 
     peer.on('connection', (conn) => setupConnection(conn));
 
-    // 通話着信の受信設定
     peer.on('call', (call) => {
       incomingCall = call;
       const callerProf = friends[call.peer] || { name: call.peer, avatar: '👤' };
@@ -540,7 +579,6 @@
     });
   }
 
-  // 接続時にメッセージ履歴を互いに同期（オフライン中の未達メッセージ解消）
   function syncMessageHistory(peerId) {
     if (!connections[peerId]) return;
 
@@ -565,7 +603,7 @@
     });
   }
 
-  function handleIncomingData(fromPeerId, data) {
+  async function handleIncomingData(fromPeerId, data) {
     if (data.type === 'profile-sync') {
       friends[fromPeerId] = data.profile;
       saveDataToStorage();
@@ -576,7 +614,7 @@
       if (!messages[targetId]) messages[targetId] = [];
 
       const msgObj = {
-        id: data.msgId, senderId: fromPeerId, text: data.text,
+        id: data.msgId, senderId: fromPeerId, text: data.text, fileId: data.fileId || null,
         isSticker: data.isSticker, isImage: data.isImage, isVideo: data.isVideo || false, isAudio: data.isAudio || false, isSystem: data.isSystem || false,
         time: data.time, isMine: false
       };
@@ -599,6 +637,58 @@
         renderLists();
       }
     } 
+    // チャンク転送プロトコル (15MB以上の大容量ファイル対応)
+    else if (data.type === 'file-start') {
+      incomingFileBuffers[data.fileId] = {
+        meta: data,
+        fromPeerId: fromPeerId,
+        chunks: new Array(data.totalChunks),
+        receivedCount: 0
+      };
+      // プレースホルダーの未完了メッセージ追加
+      const targetId = data.groupId || fromPeerId;
+      if (!messages[targetId]) messages[targetId] = [];
+      messages[targetId].push({
+        id: data.fileId, senderId: fromPeerId, text: '受信中...', fileId: data.fileId,
+        isSticker: false, isImage: data.isImage, isVideo: data.isVideo, isAudio: false, isSystem: false,
+        time: data.time, isMine: false, isUploading: true, progress: 0
+      });
+      if (activeTargetId === targetId) renderMessages();
+    }
+    else if (data.type === 'file-chunk') {
+      const buf = incomingFileBuffers[data.fileId];
+      if (buf) {
+        buf.chunks[data.chunkIndex] = data.chunk;
+        buf.receivedCount++;
+        const pct = Math.floor((buf.receivedCount / buf.meta.totalChunks) * 100);
+        
+        const targetId = buf.meta.groupId || fromPeerId;
+        const msg = (messages[targetId] || []).find(m => m.id === data.fileId);
+        if (msg) {
+          msg.progress = pct;
+          updateProgressUI(data.fileId, pct);
+        }
+      }
+    }
+    else if (data.type === 'file-end') {
+      const buf = incomingFileBuffers[data.fileId];
+      if (buf) {
+        const blob = new Blob(buf.chunks, { type: buf.meta.fileType });
+        saveFileToIDB(data.fileId, blob);
+
+        const targetId = buf.meta.groupId || fromPeerId;
+        const msg = (messages[targetId] || []).find(m => m.id === data.fileId);
+        if (msg) {
+          msg.isUploading = false;
+          msg.text = URL.createObjectURL(blob);
+        }
+        saveDataToStorage();
+        playNotificationSound();
+
+        if (activeTargetId === targetId) renderMessages();
+        delete incomingFileBuffers[data.fileId];
+      }
+    }
     else if (data.type === 'history-sync') {
       const syncTargetId = data.isGroup ? data.targetId : fromPeerId;
       if (!messages[syncTargetId]) messages[syncTargetId] = [];
@@ -640,11 +730,17 @@
     }
   }
 
+  function updateProgressUI(fileId, pct) {
+    const el = document.getElementById(`progress-fill-${fileId}`);
+    if (el) el.style.width = pct + '%';
+    const txt = document.getElementById(`progress-txt-${fileId}`);
+    if (txt) txt.textContent = pct + '%';
+  }
+
   function sendReadReceipt(toPeerId, msgIds) {
     if (connections[toPeerId]) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
   }
 
-  // フレンド追加処理 (user- の自動保持)
   function addAndConnectFriend() {
     const friendIdInput = document.getElementById('friend-id-input');
     const friendId = friendIdInput.value.trim();
@@ -659,8 +755,6 @@
     }
 
     setupConnection(peer.connect(friendId));
-    
-    // 送信完了後も user- を残す
     friendIdInput.value = 'user-';
   }
 
@@ -682,53 +776,87 @@
   function handleImageSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.createElement('canvas');
-        const maxDim = 800;
-        let w = img.width, h = img.height;
-        if (w > h) { if (w > maxDim) { h *= maxDim / w; w = maxDim; } }
-        else { if (h > maxDim) { w *= maxDim / h; h = maxDim; } }
-
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        
-        const base64Data = canvas.toDataURL('image/jpeg', 0.7);
-        dispatchMessage(base64Data, false, true, false, false, false);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+    sendLargeFile(file, false, true);
     event.target.value = '';
   }
 
   function handleVideoSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    // 動画ファイル容量チェック (15MB超過時はエラー警告)
-    if (file.size > 15 * 1024 * 1024) {
-      alert("動画サイズが大きすぎます。15MB以下の動画を選択してください。");
-      event.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        dispatchMessage(e.target.result, false, false, true, false, false);
-      } catch (err) {
-        alert("動画の送信に失敗しました。");
-      }
-    };
-    reader.readAsDataURL(file);
+    sendLargeFile(file, true, false);
     event.target.value = '';
   }
 
-  // 壁紙選択処理
+  // 大容量ファイルを32KBのチャンクに分割して高速送信
+  async function sendLargeFile(file, isVideo, isImage) {
+    if (!activeTargetId) return;
+
+    const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+    const chunkSize = 32 * 1024; // 32KBチャンク
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const time = getCurrentTime();
+
+    saveFileToIDB(fileId, file);
+    const blobUrl = URL.createObjectURL(file);
+
+    const msgObj = {
+      id: fileId, senderId: myId, text: blobUrl, fileId: fileId,
+      isSticker: false, isImage: isImage, isVideo: isVideo, isAudio: false, isSystem: false,
+      time: time, isMine: true, isUploading: true, progress: 0
+    };
+
+    if (!messages[activeTargetId]) messages[activeTargetId] = [];
+    messages[activeTargetId].push(msgObj);
+    saveDataToStorage();
+    renderMessages();
+
+    const headerPacket = {
+      type: 'file-start', fileId: fileId, fileName: file.name, fileType: file.type,
+      fileSize: file.size, totalChunks: totalChunks, isVideo: isVideo, isImage: isImage,
+      groupId: isGroupTarget ? activeTargetId : null, time: time
+    };
+
+    sendToTarget(headerPacket);
+
+    // 順次チャンク送信
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(file.size, start + chunkSize);
+      const slice = file.slice(start, end);
+      const buffer = await slice.arrayBuffer();
+
+      sendToTarget({
+        type: 'file-chunk', fileId: fileId, chunkIndex: i, chunk: buffer
+      });
+
+      const pct = Math.floor(((i + 1) / totalChunks) * 100);
+      msgObj.progress = pct;
+      updateProgressUI(fileId, pct);
+
+      // WebRTCデータチャネルのバッファオーバーフローを防止するための微小ディレイ
+      if (i % 8 === 0) await new Promise(r => setTimeout(r, 12));
+    }
+
+    sendToTarget({ type: 'file-end', fileId: fileId });
+
+    msgObj.isUploading = false;
+    saveDataToStorage();
+    renderMessages();
+  }
+
+  function sendToTarget(data) {
+    if (!isGroupTarget) {
+      if (connections[activeTargetId]) connections[activeTargetId].send(data);
+    } else {
+      const group = groups[activeTargetId];
+      if (group) {
+        group.members.forEach(mId => {
+          if (mId !== myId && connections[mId]) connections[mId].send(data);
+        });
+      }
+    }
+  }
+
   function handleWallpaperSelect(event) {
     const file = event.target.files[0];
     if (!file || !activeTargetId) return;
@@ -752,7 +880,6 @@
     }
   }
 
-  // ボイスメッセージ録音処理
   async function toggleVoiceRecording() {
     if (isRecording) {
       stopAndSendRecording();
@@ -827,7 +954,6 @@
     document.getElementById('voice-btn').style.color = '';
   }
 
-  // 音声・ビデオ通話処理
   async function startCall(isVideo) {
     if (!activeTargetId || isGroupTarget) return alert('1対1のチャット相手と通話可能です');
     
@@ -941,14 +1067,14 @@
     renderMessages();
   }
 
-  function renderMessages() {
+  async function renderMessages() {
     const container = document.getElementById('message-container');
     container.innerHTML = '';
 
     const msgList = messages[activeTargetId] || [];
     const unreadMsgIds = [];
 
-    msgList.forEach(m => {
+    for (const m of msgList) {
       if (!m.isMine && !m.isRead) {
         m.isRead = true;
         unreadMsgIds.push(m.id);
@@ -959,7 +1085,7 @@
         sysDiv.className = 'system-msg';
         sysDiv.textContent = m.text;
         container.appendChild(sysDiv);
-        return;
+        continue;
       }
 
       const msgDiv = document.createElement('div');
@@ -967,41 +1093,69 @@
 
       const contentDiv = document.createElement('div');
 
-      const isActualImage = m.isImage || (typeof m.text === 'string' && m.text.startsWith('data:image/'));
-      const isActualVideo = m.isVideo || (typeof m.text === 'string' && m.text.startsWith('data:video/'));
-      const isActualAudio = m.isAudio || (typeof m.text === 'string' && m.text.startsWith('data:audio/'));
-
-      if (isActualImage) {
+      if (m.isUploading) {
         contentDiv.className = 'message-content';
-        contentDiv.style.padding = '4px';
-        contentDiv.style.background = 'transparent';
-        const imgEl = document.createElement('img');
-        imgEl.src = m.text;
-        imgEl.className = 'message-image';
-        imgEl.onclick = () => openImageViewer(m.text);
-        contentDiv.appendChild(imgEl);
-      } else if (isActualVideo) {
-        contentDiv.className = 'message-content';
-        contentDiv.style.padding = '4px';
-        contentDiv.style.background = 'transparent';
-        const videoEl = document.createElement('video');
-        videoEl.src = m.text;
-        videoEl.controls = true;
-        videoEl.playsInline = true;
-        videoEl.preload = 'metadata';
-        videoEl.className = 'message-video';
-        contentDiv.appendChild(videoEl);
-      } else if (isActualAudio) {
-        contentDiv.className = 'message-content';
-        contentDiv.style.padding = '4px';
-        const audioEl = document.createElement('audio');
-        audioEl.src = m.text;
-        audioEl.controls = true;
-        audioEl.className = 'message-audio';
-        contentDiv.appendChild(audioEl);
+        contentDiv.innerHTML = `
+          <div class="progress-box">
+            <div>${m.isMine ? '送信中...' : '受信中...'} (<span id="progress-txt-${m.id}">${m.progress || 0}%</span>)</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="progress-fill-${m.id}" style="width: ${m.progress || 0}%;"></div>
+            </div>
+          </div>
+        `;
       } else {
-        contentDiv.className = `message-content ${m.isSticker ? 'sticker' : ''}`;
-        contentDiv.textContent = m.text;
+        const isActualImage = m.isImage || (typeof m.text === 'string' && m.text.startsWith('data:image/'));
+        const isActualVideo = m.isVideo || (typeof m.text === 'string' && m.text.startsWith('data:video/'));
+        const isActualAudio = m.isAudio || (typeof m.text === 'string' && m.text.startsWith('data:audio/'));
+
+        if (isActualImage) {
+          contentDiv.className = 'message-content';
+          contentDiv.style.padding = '4px';
+          contentDiv.style.background = 'transparent';
+          const imgEl = document.createElement('img');
+          imgEl.className = 'message-image';
+          
+          if (m.fileId) {
+            const blob = await getFileFromIDB(m.fileId);
+            if (blob) imgEl.src = URL.createObjectURL(blob);
+            else imgEl.src = m.text;
+          } else {
+            imgEl.src = m.text;
+          }
+
+          imgEl.onclick = () => openImageViewer(imgEl.src);
+          contentDiv.appendChild(imgEl);
+        } else if (isActualVideo) {
+          contentDiv.className = 'message-content';
+          contentDiv.style.padding = '4px';
+          contentDiv.style.background = 'transparent';
+          const videoEl = document.createElement('video');
+          videoEl.controls = true;
+          videoEl.playsInline = true;
+          videoEl.preload = 'metadata';
+          videoEl.className = 'message-video';
+
+          if (m.fileId) {
+            const blob = await getFileFromIDB(m.fileId);
+            if (blob) videoEl.src = URL.createObjectURL(blob);
+            else videoEl.src = m.text;
+          } else {
+            videoEl.src = m.text;
+          }
+
+          contentDiv.appendChild(videoEl);
+        } else if (isActualAudio) {
+          contentDiv.className = 'message-content';
+          contentDiv.style.padding = '4px';
+          const audioEl = document.createElement('audio');
+          audioEl.src = m.text;
+          audioEl.controls = true;
+          audioEl.className = 'message-audio';
+          contentDiv.appendChild(audioEl);
+        } else {
+          contentDiv.className = `message-content ${m.isSticker ? 'sticker' : ''}`;
+          contentDiv.textContent = m.text;
+        }
       }
 
       const metaDiv = document.createElement('div');
@@ -1012,7 +1166,7 @@
       msgDiv.appendChild(contentDiv);
       msgDiv.appendChild(metaDiv);
       container.appendChild(msgDiv);
-    });
+    }
 
     container.scrollTop = container.scrollHeight;
     if (unreadMsgIds.length > 0) saveDataToStorage();
