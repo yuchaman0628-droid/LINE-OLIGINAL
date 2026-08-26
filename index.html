@@ -100,7 +100,7 @@
 
     .message-content.sticker { background: transparent !important; font-size: 52px; padding: 0; }
     .message-image { max-width: 180px; max-height: 200px; border-radius: 10px; cursor: pointer; display: block; object-fit: cover; }
-    .message-video { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; }
+    .message-video { max-width: 200px; max-height: 200px; border-radius: 10px; display: block; background: #000; }
     .message-audio { max-width: 200px; height: 40px; }
 
     /* システム通知メッセージ */
@@ -449,9 +449,13 @@
   }
 
   function saveDataToStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, isDarkMode: isDarkMode
-    }));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, isDarkMode: isDarkMode
+      }));
+    } catch (e) {
+      console.warn("Storage quota exceeded", e);
+    }
   }
 
   function clearAllData() {
@@ -525,6 +529,7 @@
 
     conn.on('open', () => {
       conn.send({ type: 'profile-sync', profile: myProfile });
+      syncMessageHistory(conn.peer);
       renderLists();
     });
 
@@ -532,6 +537,31 @@
     conn.on('close', () => {
       delete connections[conn.peer];
       renderLists();
+    });
+  }
+
+  // 接続時にメッセージ履歴を互いに同期（オフライン中の未達メッセージ解消）
+  function syncMessageHistory(peerId) {
+    if (!connections[peerId]) return;
+
+    if (messages[peerId]) {
+      connections[peerId].send({
+        type: 'history-sync',
+        targetId: peerId,
+        isGroup: false,
+        messages: messages[peerId]
+      });
+    }
+
+    Object.keys(groups).forEach(gId => {
+      if (groups[gId].members.includes(peerId) && messages[gId]) {
+        connections[peerId].send({
+          type: 'history-sync',
+          targetId: gId,
+          isGroup: true,
+          messages: messages[gId]
+        });
+      }
     });
   }
 
@@ -569,6 +599,32 @@
         renderLists();
       }
     } 
+    else if (data.type === 'history-sync') {
+      const syncTargetId = data.isGroup ? data.targetId : fromPeerId;
+      if (!messages[syncTargetId]) messages[syncTargetId] = [];
+      let updated = false;
+
+      (data.messages || []).forEach(remoteMsg => {
+        const exists = messages[syncTargetId].some(m => m.id === remoteMsg.id);
+        if (!exists) {
+          const isMine = (remoteMsg.senderId === myId);
+          messages[syncTargetId].push({
+            ...remoteMsg,
+            isMine: isMine
+          });
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        saveDataToStorage();
+        if (activeTargetId === syncTargetId) {
+          renderMessages();
+        } else {
+          renderLists();
+        }
+      }
+    }
     else if (data.type === 'read-ack') {
       if (messages[fromPeerId]) {
         messages[fromPeerId].forEach(m => { if (data.msgIds.includes(m.id)) m.isRead = true; });
@@ -653,9 +709,20 @@
     const file = event.target.files[0];
     if (!file) return;
 
+    // 動画ファイル容量チェック (15MB超過時はエラー警告)
+    if (file.size > 15 * 1024 * 1024) {
+      alert("動画サイズが大きすぎます。15MB以下の動画を選択してください。");
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = function(e) {
-      dispatchMessage(e.target.result, false, false, true, false, false);
+      try {
+        dispatchMessage(e.target.result, false, false, true, false, false);
+      } catch (err) {
+        alert("動画の送信に失敗しました。");
+      }
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -850,18 +917,22 @@
 
     if (!isGroupTarget) {
       if (connections[activeTargetId]) {
-        connections[activeTargetId].send({
-          type: 'chat-msg', msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
-        });
+        try {
+          connections[activeTargetId].send({
+            type: 'chat-msg', msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
+          });
+        } catch (e) { console.warn("Failed to send message online", e); }
       }
     } else {
       const group = groups[activeTargetId];
       if (group) {
         group.members.forEach(mId => {
           if (mId !== myId && connections[mId]) {
-            connections[mId].send({
-              type: 'chat-msg', groupId: activeTargetId, msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
-            });
+            try {
+              connections[mId].send({
+                type: 'chat-msg', groupId: activeTargetId, msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
+              });
+            } catch (e) { console.warn("Failed to send group message online", e); }
           }
         });
       }
@@ -916,6 +987,8 @@
         const videoEl = document.createElement('video');
         videoEl.src = m.text;
         videoEl.controls = true;
+        videoEl.playsInline = true;
+        videoEl.preload = 'metadata';
         videoEl.className = 'message-video';
         contentDiv.appendChild(videoEl);
       } else if (isActualAudio) {
