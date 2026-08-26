@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ Ultimate</title>
+  <title>LINE風チャットアプリ Ultimate Fix</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -43,6 +43,8 @@
     .btn { background: var(--line-green); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
     .btn-secondary { background: #6c757d; }
     .btn-danger { background: #dc3545; }
+    .btn-notify { background: #ff9800; }
+    .btn-small { padding: 4px 8px; font-size: 11px; }
 
     .input-group { display: flex; gap: 6px; margin-top: 8px; }
     .input-group input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 13px; }
@@ -68,15 +70,15 @@
 
     .message.sent { align-self: flex-end; flex-direction: row-reverse; }
     .message.sent .message-content { background-color: var(--my-msg-bg); border-bottom-right-radius: 2px; }
-    .message.sent .message-meta { align-items: flex-end; }
 
     .message.received { align-self: flex-start; }
     .message.received .message-content { background-color: var(--other-msg-bg); border-bottom-left-radius: 2px; }
-    .message.received .message-meta { align-items: flex-start; }
 
-    /* 特殊メッセージ（スタンプ＆画像） */
     .message-content.sticker { background: transparent !important; font-size: 52px; padding: 0; }
-    .message-image { max-width: 180px; max-height: 200px; border-radius: 10px; cursor: pointer; display: block; }
+    .message-image { max-width: 180px; max-height: 200px; border-radius: 10px; cursor: pointer; display: block; object-fit: cover; }
+
+    /* システム通知メッセージ */
+    .system-msg { align-self: center; background: rgba(0,0,0,0.2); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin: 4px 0; }
 
     /* 入力エリア */
     .chat-input-container { background-color: #ffffff; position: relative; }
@@ -89,30 +91,19 @@
       background: #f9f9f9; border-top: 1px solid #ddd; max-height: 140px; overflow-y: auto; text-align: center; font-size: 28px;
     }
     .sticker-palette.active { display: grid; }
-    .sticker-item { cursor: pointer; transition: transform 0.1s; }
-    .sticker-item:hover { transform: scale(1.2); }
+    .sticker-item { cursor: pointer; }
 
     /* モーダル */
-    .modal-overlay {
-      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;
-    }
+    .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
     .modal-overlay.active { display: flex; }
     .modal { background: white; padding: 20px; border-radius: 12px; width: 85%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
-    .modal h3 { font-size: 16px; text-align: center; }
-    .modal input { padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
     .modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-    .member-select-list { max-height: 120px; overflow-y: auto; border: 1px solid #eee; padding: 6px; border-radius: 6px; }
-    .member-checkbox { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+    .member-select-list { max-height: 140px; overflow-y: auto; border: 1px solid #eee; padding: 6px; border-radius: 6px; }
 
-    /* 画像全画面プレビューモーダル */
-    .image-viewer {
-      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; flex-direction: column;
-    }
+    /* 画像全画面表示 */
+    .image-viewer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; }
     .image-viewer.active { display: flex; }
     .image-viewer img { max-width: 90%; max-height: 80%; border-radius: 8px; }
-    .image-viewer-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 24px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -123,22 +114,22 @@
   <div id="home-screen" class="screen active">
     <div class="home-header">
       <span>ホーム</span>
-      <span style="font-size: 11px; color: var(--line-green);">● オンライン</span>
+      <button class="btn btn-notify" id="notify-perm-btn" onclick="requestNotificationPermission()">🔔 通知許可</button>
     </div>
 
-    <!-- 自分のプロフィール表示 -->
+    <!-- プロフィール -->
     <div class="my-profile-card" onclick="openProfileModal()">
       <div class="avatar" id="my-avatar-disp">👤</div>
       <div class="profile-info">
         <div class="profile-name" id="my-name-disp">ユーザー</div>
-        <div class="profile-status" id="my-status-disp">タップしてプロフィールを編集</div>
+        <div class="profile-status" id="my-status-disp">タップして編集</div>
       </div>
       <span style="font-size: 12px; color: #aaa;">編集 ✏️</span>
     </div>
 
     <!-- ID表示 & フレンド追加 -->
     <div class="id-section">
-      <div>あなたのID（保存済み）:</div>
+      <div>あなたのID:</div>
       <div class="id-box">
         <span id="my-peer-id">発行中...</span>
         <button class="btn" onclick="copyMyId()">コピー</button>
@@ -149,13 +140,13 @@
       </div>
     </div>
 
-    <!-- グループ作成 & 履歴消去ボタン -->
+    <!-- アクションバー -->
     <div class="action-bar">
       <button class="btn btn-secondary" style="flex: 1;" onclick="openGroupModal()">＋ グループ作成</button>
       <button class="btn btn-danger" onclick="clearAllData()">履歴クリア</button>
     </div>
 
-    <!-- トーク・グループ一覧 -->
+    <!-- トーク一覧 -->
     <div class="list-container">
       <div class="section-title">グループ</div>
       <div id="group-list"></div>
@@ -170,12 +161,11 @@
     <div class="chat-header">
       <button class="back-btn" onclick="openHome()">◀ 戻る</button>
       <span id="chat-target-name" style="font-size: 15px; font-weight: bold;">チャット</span>
-      <div style="width: 30px;"></div>
+      <button class="btn btn-secondary btn-small" id="add-member-btn" style="display: none;" onclick="openAddMemberModal()">⚙️ メンバー追加</button>
     </div>
 
     <div class="chat-messages" id="message-container"></div>
 
-    <!-- 入力エリア & スタンプパレット -->
     <div class="chat-input-container">
       <div class="sticker-palette" id="sticker-palette">
         <span class="sticker-item" onclick="sendSticker('👍')">👍</span>
@@ -183,20 +173,12 @@
         <span class="sticker-item" onclick="sendSticker('❤️')">❤️</span>
         <span class="sticker-item" onclick="sendSticker('😊')">😊</span>
         <span class="sticker-item" onclick="sendSticker('🔥')">🔥</span>
-        <span class="sticker-item" onclick="sendSticker('🐱')">🐱</span>
-        <span class="sticker-item" onclick="sendSticker('🚀')">🚀</span>
-        <span class="sticker-item" onclick="sendSticker('😭')">😭</span>
-        <span class="sticker-item" onclick="sendSticker('✨')">✨</span>
-        <span class="sticker-item" onclick="sendSticker('🎁')">🎁</span>
       </div>
 
       <form class="chat-input-area" onsubmit="sendTextMessage(event)">
         <button type="button" class="icon-btn" onclick="toggleStickerPalette()">😀</button>
-        
-        <!-- 画像選択ボタン -->
         <button type="button" class="icon-btn" onclick="document.getElementById('image-file-input').click()">📷</button>
         <input type="file" id="image-file-input" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
-
         <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
         <button type="submit" class="btn">➤</button>
       </form>
@@ -207,7 +189,7 @@
   <div class="modal-overlay" id="profile-modal">
     <div class="modal">
       <h3>プロフィール編集</h3>
-      <label style="font-size: 12px;">アイコン（絵文字1文字）:</label>
+      <label style="font-size: 12px;">アイコン（絵文字）:</label>
       <input type="text" id="edit-avatar" maxlength="2" value="👤">
       <label style="font-size: 12px;">名前:</label>
       <input type="text" id="edit-name" value="ユーザー">
@@ -220,12 +202,12 @@
     </div>
   </div>
 
-  <!-- モーダル: グループ作成 -->
+  <!-- モーダル: 新規グループ作成 -->
   <div class="modal-overlay" id="group-modal">
     <div class="modal">
       <h3>グループ作成</h3>
       <input type="text" id="group-name-input" placeholder="グループ名を入力...">
-      <div style="font-size: 12px; color: #666;">参加させるメンバーを選択:</div>
+      <div style="font-size: 12px; color: #666;">メンバーを選択:</div>
       <div class="member-select-list" id="member-select-list"></div>
       <div class="modal-btns">
         <button class="btn btn-secondary" onclick="closeModal('group-modal')">キャンセル</button>
@@ -234,30 +216,69 @@
     </div>
   </div>
 
-  <!-- 画像拡大表示モーダル -->
+  <!-- モーダル: グループメンバー追加 -->
+  <div class="modal-overlay" id="add-member-modal">
+    <div class="modal">
+      <h3>メンバーを追加</h3>
+      <div style="font-size: 12px; color: #666;">追加するフレンドを選択:</div>
+      <div class="member-select-list" id="add-member-select-list"></div>
+      <div class="modal-btns">
+        <button class="btn btn-secondary" onclick="closeModal('add-member-modal')">キャンセル</button>
+        <button class="btn" onclick="submitAddMembers()">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 画像拡大モーダル -->
   <div class="image-viewer" id="image-viewer" onclick="closeImageViewer()">
-    <span class="image-viewer-close">&times;</span>
     <img id="image-viewer-img" src="" alt="拡大画像">
   </div>
 
 </div>
 
 <script>
-  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V1';
+  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V3';
 
   let peer = null;
   let myId = '';
   let myProfile = { name: 'ユーザー', avatar: '👤', status: 'よろしくお願いします！' };
 
-  let connections = {}; // friendId -> connection
-  let friends = {};     // friendId -> profile
-  let groups = {};      // groupId -> { name, members: [] }
-  let messages = {};    // targetId -> [ msgObj ]
+  let connections = {};
+  let friends = {};
+  let groups = {};
+  let messages = {};
 
   let activeTargetId = null;
   let isGroupTarget = false;
 
-  // LocalStorageからデータの復元
+  function checkNotificationPermission() {
+    if (!("Notification" in window)) {
+      document.getElementById('notify-perm-btn').style.display = 'none';
+      return;
+    }
+    if (Notification.permission === "granted") {
+      document.getElementById('notify-perm-btn').textContent = '🔔 通知ON';
+      document.getElementById('notify-perm-btn').style.background = '#4CAF50';
+    }
+  }
+
+  function requestNotificationPermission() {
+    if (!("Notification" in window)) return alert("通知機能に対応していません");
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        document.getElementById('notify-perm-btn').textContent = '🔔 通知ON';
+        document.getElementById('notify-perm-btn').style.background = '#4CAF50';
+        new Notification("LINE風アプリ", { body: "通知が有効化されました！" });
+      }
+    });
+  }
+
+  function sendSystemNotification(senderName, text) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(`新着メッセージ (${senderName})`, { body: text });
+    }
+  }
+
   function loadStoredData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -268,36 +289,26 @@
         if (data.friends) friends = data.friends;
         if (data.groups) groups = data.groups;
         if (data.messages) messages = data.messages;
-      } catch (e) { console.error("データロード失敗:", e); }
+      } catch (e) { console.error(e); }
     }
-    
-    // プロフィール表示の初期設定
     document.getElementById('my-avatar-disp').textContent = myProfile.avatar;
     document.getElementById('my-name-disp').textContent = myProfile.name;
-    document.getElementById('my-status-disp').textContent = myProfile.status || 'ステータスメッセージ未設定';
+    document.getElementById('my-status-disp').textContent = myProfile.status || '';
   }
 
-  // LocalStorageへのデータ永続保存
   function saveDataToStorage() {
-    const data = {
-      myId: myId,
-      myProfile: myProfile,
-      friends: friends,
-      groups: groups,
-      messages: messages
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages
+    }));
   }
 
-  // データ初期化（履歴クリア）
   function clearAllData() {
-    if (confirm("すべてのメッセージ履歴、フレンドリスト、設定をクリアしますか？")) {
+    if (confirm("すべてのデータを初期化しますか？")) {
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     }
   }
 
-  // Web Audio API による通知音（ピコン♪）
   function playNotificationSound() {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -305,25 +316,20 @@
       const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
       const now = ctx.currentTime;
       osc.type = 'sine';
       osc.frequency.setValueAtTime(1046.50, now);
       osc.frequency.setValueAtTime(1318.51, now + 0.08);
-
       gain.gain.setValueAtTime(0.15, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.25);
-    } catch (e) { console.log(e); }
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now + 0.25);
+    } catch (e) {}
   }
 
-  // PeerJSの初期化（前回のIDを引き継ぎ）
   function initPeer() {
     loadStoredData();
+    checkNotificationPermission();
 
     if (!myId) {
       myId = 'user-' + Math.floor(10000 + Math.random() * 90000);
@@ -334,28 +340,19 @@
 
     peer.on('open', (id) => {
       document.getElementById('my-peer-id').textContent = id;
-      // 保存されていたフレンドと再接続を試みる
       autoReconnectFriends();
     });
 
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
+    peer.on('connection', (conn) => setupConnection(conn));
     renderLists();
   }
 
-  // 保存されているフレンドとバックグラウンドで自動接続
   function autoReconnectFriends() {
     Object.keys(friends).forEach(fId => {
-      if (!connections[fId]) {
-        const conn = peer.connect(fId);
-        setupConnection(conn);
-      }
+      if (!connections[fId]) setupConnection(peer.connect(fId));
     });
   }
 
-  // 通信セットアップ
   function setupConnection(conn) {
     connections[conn.peer] = conn;
 
@@ -364,17 +361,13 @@
       renderLists();
     });
 
-    conn.on('data', (data) => {
-      handleIncomingData(conn.peer, data);
-    });
-
+    conn.on('data', (data) => handleIncomingData(conn.peer, data));
     conn.on('close', () => {
       delete connections[conn.peer];
       renderLists();
     });
   }
 
-  // 受信データの割り振り
   function handleIncomingData(fromPeerId, data) {
     if (data.type === 'profile-sync') {
       friends[fromPeerId] = data.profile;
@@ -386,18 +379,21 @@
       if (!messages[targetId]) messages[targetId] = [];
 
       const msgObj = {
-        id: data.msgId,
-        senderId: fromPeerId,
-        text: data.text,
-        isSticker: data.isSticker,
-        isImage: data.isImage,
-        time: data.time,
-        isMine: false
+        id: data.msgId, senderId: fromPeerId, text: data.text,
+        isSticker: data.isSticker, isImage: data.isImage, isSystem: data.isSystem || false,
+        time: data.time, isMine: false
       };
 
       messages[targetId].push(msgObj);
       saveDataToStorage();
       playNotificationSound();
+
+      const senderProf = friends[fromPeerId] || { name: '誰か' };
+      const displayContent = data.isImage ? '📷 画像' : (data.isSticker ? 'スタンプ' : data.text);
+
+      if (document.hidden || activeTargetId !== targetId) {
+        sendSystemNotification(senderProf.name, displayContent);
+      }
 
       if (document.getElementById('chat-screen').classList.contains('active') && activeTargetId === targetId) {
         renderMessages();
@@ -407,26 +403,22 @@
       }
     } 
     else if (data.type === 'read-ack') {
-      const targetId = fromPeerId;
-      if (messages[targetId]) {
-        messages[targetId].forEach(m => {
-          if (data.msgIds.includes(m.id)) m.isRead = true;
-        });
+      if (messages[fromPeerId]) {
+        messages[fromPeerId].forEach(m => { if (data.msgIds.includes(m.id)) m.isRead = true; });
         saveDataToStorage();
-        if (activeTargetId === targetId) renderMessages();
+        if (activeTargetId === fromPeerId) renderMessages();
       }
     }
-    else if (data.type === 'group-created') {
+    else if (data.type === 'group-sync') {
       groups[data.groupId] = { name: data.groupName, members: data.members };
       saveDataToStorage();
       renderLists();
+      if (activeTargetId === data.groupId) renderMessages();
     }
   }
 
   function sendReadReceipt(toPeerId, msgIds) {
-    if (connections[toPeerId]) {
-      connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
-    }
+    if (connections[toPeerId]) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
   }
 
   function addAndConnectFriend() {
@@ -438,30 +430,25 @@
       saveDataToStorage();
     }
 
-    const conn = peer.connect(friendId);
-    setupConnection(conn);
+    setupConnection(peer.connect(friendId));
     document.getElementById('friend-id-input').value = '';
   }
 
-  // テキストメッセージ送信
   function sendTextMessage(event) {
     event.preventDefault();
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     if (!text) return;
-
     dispatchMessage(text, false, false);
     input.value = '';
     document.getElementById('sticker-palette').classList.remove('active');
   }
 
-  // スタンプ送信
-  function sendSticker(stickerEmoji) {
-    dispatchMessage(stickerEmoji, true, false);
+  function sendSticker(emoji) {
+    dispatchMessage(emoji, true, false);
     document.getElementById('sticker-palette').classList.remove('active');
   }
 
-  // 画像選択＆送信処理（Canvasで軽量化）
   function handleImageSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -470,48 +457,34 @@
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
-        // 画像をリサイズ・圧縮
         const canvas = document.createElement('canvas');
         const maxDim = 800;
-        let width = img.width;
-        let height = img.height;
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxDim) { h *= maxDim / w; w = maxDim; } }
+        else { if (h > maxDim) { w *= maxDim / h; h = maxDim; } }
 
-        if (width > height) {
-          if (width > maxDim) { height *= maxDim / width; width = maxDim; }
-        } else {
-          if (height > maxDim) { width *= maxDim / height; height = maxDim; }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const base64Image = canvas.toDataURL('image/jpeg', 0.7);
-        dispatchMessage(base64Image, false, true);
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        
+        const base64Data = canvas.toDataURL('image/jpeg', 0.7);
+        dispatchMessage(base64Data, false, true);
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
-    event.target.value = ''; // Reset
+    event.target.value = '';
   }
 
-  // 送信処理本体
-  function dispatchMessage(content, isSticker, isImage) {
+  function dispatchMessage(content, isSticker, isImage, isSystem = false) {
     if (!activeTargetId) return;
 
     const time = getCurrentTime();
     const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
 
     const msgObj = {
-      id: msgId,
-      senderId: myId,
-      text: content,
-      isSticker: isSticker,
-      isImage: isImage,
-      time: time,
-      isMine: true,
-      isRead: false
+      id: msgId, senderId: myId, text: content,
+      isSticker: isSticker, isImage: isImage, isSystem: isSystem,
+      time: time, isMine: true, isRead: false
     };
 
     if (!messages[activeTargetId]) messages[activeTargetId] = [];
@@ -521,16 +494,16 @@
     if (!isGroupTarget) {
       if (connections[activeTargetId]) {
         connections[activeTargetId].send({
-          type: 'chat-msg', msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, time: time
+          type: 'chat-msg', msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isSystem: isSystem, time: time
         });
       }
     } else {
       const group = groups[activeTargetId];
       if (group) {
-        group.members.forEach(memberId => {
-          if (memberId !== myId && connections[memberId]) {
-            connections[memberId].send({
-              type: 'chat-msg', groupId: activeTargetId, msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, time: time
+        group.members.forEach(mId => {
+          if (mId !== myId && connections[mId]) {
+            connections[mId].send({
+              type: 'chat-msg', groupId: activeTargetId, msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isSystem: isSystem, time: time
             });
           }
         });
@@ -540,7 +513,7 @@
     renderMessages();
   }
 
-  // メッセージ描画
+  // メッセージ描画（修正: 画像データの二重判定フォールバックを追加）
   function renderMessages() {
     const container = document.getElementById('message-container');
     container.innerHTML = '';
@@ -554,12 +527,24 @@
         unreadMsgIds.push(m.id);
       }
 
+      // システム通知の場合
+      if (m.isSystem) {
+        const sysDiv = document.createElement('div');
+        sysDiv.className = 'system-msg';
+        sysDiv.textContent = m.text;
+        container.appendChild(sysDiv);
+        return;
+      }
+
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${m.isMine ? 'sent' : 'received'}`;
 
       const contentDiv = document.createElement('div');
-      
-      if (m.isImage) {
+
+      // 画像の判別: isImageフラグ、または先頭が data:image/ で始まるか判定（バグ修正）
+      const isActualImage = m.isImage || (typeof m.text === 'string' && m.text.startsWith('data:image/'));
+
+      if (isActualImage) {
         contentDiv.className = 'message-content';
         contentDiv.style.padding = '4px';
         contentDiv.style.background = 'transparent';
@@ -575,7 +560,6 @@
 
       const metaDiv = document.createElement('div');
       metaDiv.className = 'message-meta';
-      
       let readHtml = (m.isMine && m.isRead) ? `<span class="read-status">既読</span>` : '';
       metaDiv.innerHTML = `${readHtml}<span>${m.time}</span>`;
 
@@ -585,19 +569,15 @@
     });
 
     container.scrollTop = container.scrollHeight;
-
     if (unreadMsgIds.length > 0) saveDataToStorage();
-
     if (unreadMsgIds.length > 0 && !isGroupTarget && connections[activeTargetId]) {
       sendReadReceipt(activeTargetId, unreadMsgIds);
     }
   }
 
-  // ホーム＆チャットリスト描画
   function renderLists() {
     const friendsContainer = document.getElementById('friends-list');
     friendsContainer.innerHTML = '';
-
     const allFriendIds = Array.from(new Set([...Object.keys(friends), ...Object.keys(connections)]));
 
     allFriendIds.forEach(fId => {
@@ -606,7 +586,6 @@
       const item = document.createElement('div');
       item.className = 'list-item';
       item.onclick = () => openChat(fId, false, prof.name);
-
       item.innerHTML = `
         <div class="avatar">${prof.avatar}</div>
         <div class="profile-info">
@@ -621,13 +600,11 @@
 
     const groupsContainer = document.getElementById('group-list');
     groupsContainer.innerHTML = '';
-
     Object.keys(groups).forEach(gId => {
       const g = groups[gId];
       const item = document.createElement('div');
       item.className = 'list-item';
       item.onclick = () => openChat(gId, true, g.name);
-
       item.innerHTML = `
         <div class="avatar" style="background:#00b900; color:white;">👥</div>
         <div class="profile-info">
@@ -643,17 +620,16 @@
     activeTargetId = targetId;
     isGroupTarget = isGroup;
     document.getElementById('chat-target-name').textContent = name;
+    document.getElementById('add-member-btn').style.display = isGroup ? 'block' : 'none';
 
     document.getElementById('home-screen').classList.remove('active');
     document.getElementById('chat-screen').classList.add('active');
-
     renderMessages();
   }
 
   function openHome() {
     activeTargetId = null;
     document.getElementById('chat-screen').classList.remove('active');
-    document.getElementById('home-screen').classList.active;
     document.getElementById('home-screen').classList.add('active');
     renderLists();
   }
@@ -676,44 +652,35 @@
 
     document.getElementById('my-avatar-disp').textContent = myProfile.avatar;
     document.getElementById('my-name-disp').textContent = myProfile.name;
-    document.getElementById('my-status-disp').textContent = myProfile.status || 'ステータスメッセージ未設定';
-
+    document.getElementById('my-status-disp').textContent = myProfile.status;
     saveDataToStorage();
 
-    Object.values(connections).forEach(conn => {
-      conn.send({ type: 'profile-sync', profile: myProfile });
-    });
-
+    Object.values(connections).forEach(conn => conn.send({ type: 'profile-sync', profile: myProfile }));
     closeModal('profile-modal');
   }
 
   function openGroupModal() {
     const list = document.getElementById('member-select-list');
     list.innerHTML = '';
-
     const allFriendIds = Array.from(new Set([...Object.keys(friends), ...Object.keys(connections)]));
-
     allFriendIds.forEach(fId => {
       const prof = friends[fId] || { name: fId };
       const div = document.createElement('label');
-      div.className = 'member-checkbox';
+      div.style.display = 'block';
+      div.style.padding = '4px 0';
+      div.style.fontSize = '13px';
       div.innerHTML = `<input type="checkbox" value="${fId}"> ${escapeHTML(prof.name)}`;
       list.appendChild(div);
     });
-
     document.getElementById('group-modal').classList.add('active');
   }
 
   function createGroup() {
     const name = document.getElementById('group-name-input').value.trim();
     if (!name) return alert('グループ名を入力してください');
-
     const selectedMembers = [myId];
-    document.querySelectorAll('#member-select-list input:checked').forEach(cb => {
-      selectedMembers.push(cb.value);
-    });
-
-    if (selectedMembers.length < 2) return alert('メンバーを1人以上選択してください');
+    document.querySelectorAll('#member-select-list input:checked').forEach(cb => selectedMembers.push(cb.value));
+    if (selectedMembers.length < 2) return alert('メンバーを選択してください');
 
     const groupId = 'group-' + Date.now();
     groups[groupId] = { name: name, members: selectedMembers };
@@ -721,13 +688,73 @@
 
     selectedMembers.forEach(mId => {
       if (mId !== myId && connections[mId]) {
-        connections[mId].send({
-          type: 'group-created', groupId: groupId, groupName: name, members: selectedMembers
-        });
+        connections[mId].send({ type: 'group-sync', groupId: groupId, groupName: name, members: selectedMembers });
       }
     });
 
     closeModal('group-modal');
+    renderLists();
+  }
+
+  // 後からグループにメンバーを追加するダイアログ
+  function openAddMemberModal() {
+    const list = document.getElementById('add-member-select-list');
+    list.innerHTML = '';
+
+    const group = groups[activeTargetId];
+    if (!group) return;
+
+    const allFriendIds = Array.from(new Set([...Object.keys(friends), ...Object.keys(connections)]));
+    // まだグループに参加していないフレンドだけ抽出
+    const candidates = allFriendIds.filter(fId => !group.members.includes(fId));
+
+    if (candidates.length === 0) {
+      list.innerHTML = '<div style="font-size:12px; color:#999; padding:10px; text-align:center;">追加できる新しいフレンドがいません</div>';
+    } else {
+      candidates.forEach(fId => {
+        const prof = friends[fId] || { name: fId };
+        const div = document.createElement('label');
+        div.style.display = 'block';
+        div.style.padding = '4px 0';
+        div.style.fontSize = '13px';
+        div.innerHTML = `<input type="checkbox" value="${fId}"> ${escapeHTML(prof.name)}`;
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById('add-member-modal').classList.add('active');
+  }
+
+  // 後からメンバー追加の送信処理
+  function submitAddMembers() {
+    const group = groups[activeTargetId];
+    if (!group) return;
+
+    const newMemberIds = [];
+    document.querySelectorAll('#add-member-select-list input:checked').forEach(cb => {
+      newMemberIds.push(cb.value);
+    });
+
+    if (newMemberIds.length === 0) return closeModal('add-member-modal');
+
+    // メンバーリスト更新
+    group.members = Array.from(new Set([...group.members, ...newMemberIds]));
+    saveDataToStorage();
+
+    // 全員（新旧含む）にグループの最新情報を配信
+    group.members.forEach(mId => {
+      if (mId !== myId && connections[mId]) {
+        connections[mId].send({
+          type: 'group-sync', groupId: activeTargetId, groupName: group.name, members: group.members
+        });
+      }
+    });
+
+    // チャット画面に「〇〇が追加されました」のシステム通知を出す
+    const addedNames = newMemberIds.map(id => (friends[id] ? friends[id].name : id)).join('、');
+    dispatchMessage(`${addedNames} がグループに参加しました`, false, false, true);
+
+    closeModal('add-member-modal');
     renderLists();
   }
 
