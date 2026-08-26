@@ -709,9 +709,9 @@
     const file = event.target.files[0];
     if (!file) return;
 
-    // 動画ファイル容量チェック (1GB超過時はエラー警告)
-    if (file.size > 1024 * 1024 * 1024) {
-      alert("動画サイズが大きすぎます。1GB以下の動画を選択してください。");
+    // 動画ファイル容量チェック (15MB超過時はエラー警告)
+    if (file.size > 15 * 1024 * 1024) {
+      alert("動画サイズが大きすぎます。15MB以下の動画を選択してください。");
       event.target.value = '';
       return;
     }
