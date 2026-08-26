@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ</title>
+  <title>LINE風アプリ - ホーム & チャット</title>
   <style>
     :root {
       --bg-color: #7494C0;
@@ -12,6 +12,7 @@
       --other-msg-bg: #FFFFFF;
       --text-color: #111111;
       --time-color: #4A5568;
+      --line-green: #06C755;
     }
 
     * {
@@ -29,47 +30,156 @@
       min-height: 100vh;
     }
 
-    /* アプリのコンテナ（スマホ風画面） */
-    .chat-container {
+    /* アプリ共通コンテナ */
+    .app-container {
       width: 100%;
       max-width: 420px;
       height: 90vh;
       max-height: 750px;
-      background-color: var(--bg-color);
+      background-color: #ffffff;
       display: flex;
       flex-direction: column;
       box-shadow: 0 8px 24px rgba(0,0,0,0.15);
       border-radius: 16px;
       overflow: hidden;
+      position: relative;
     }
 
-    /* ヘッダー */
+    /* 画面切り替えの制御 */
+    .screen {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* ------------------------------
+       1. ホーム画面のスタイル
+    ------------------------------ */
+    .home-header {
+      padding: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      border-bottom: 1px solid #eee;
+    }
+
+    .profile-card {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      gap: 16px;
+      border-bottom: 8px solid #f7f9fa;
+    }
+
+    .avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #ddd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+    }
+
+    .profile-info .name {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .profile-info .status {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .menu-section {
+      padding: 16px;
+      flex: 1;
+    }
+
+    .menu-title {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .menu-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .menu-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background-color: var(--line-green);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+    }
+
+    .menu-text .title {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .menu-text .desc {
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* ------------------------------
+       2. チャット画面のスタイル
+    ------------------------------ */
+    #chat-screen {
+      background-color: var(--bg-color);
+    }
+
     .chat-header {
       background-color: var(--header-bg);
       color: white;
-      padding: 16px;
+      padding: 12px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: bold;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
     }
 
     .user-toggle {
       background-color: #3b4a54;
       color: white;
       border: 1px solid #52636d;
-      padding: 6px 12px;
-      border-radius: 20px;
+      padding: 4px 10px;
+      border-radius: 16px;
       cursor: pointer;
-      font-size: 12px;
-      transition: background 0.2s;
+      font-size: 11px;
     }
 
-    .user-toggle:hover {
-      background-color: #4a5b67;
-    }
-
-    /* チャット表示エリア */
     .chat-messages {
       flex: 1;
       padding: 16px;
@@ -79,7 +189,6 @@
       gap: 12px;
     }
 
-    /* メッセージ共通スタイル */
     .message {
       display: flex;
       align-items: flex-end;
@@ -102,7 +211,6 @@
       white-space: nowrap;
     }
 
-    /* 送信者（自分）メッセージ */
     .message.sent {
       align-self: flex-end;
       flex-direction: row-reverse;
@@ -113,7 +221,6 @@
       border-bottom-right-radius: 4px;
     }
 
-    /* 受信者（相手）メッセージ */
     .message.received {
       align-self: flex-start;
     }
@@ -123,7 +230,6 @@
       border-bottom-left-radius: 4px;
     }
 
-    /* 入力エリア */
     .chat-input-area {
       background-color: #ffffff;
       padding: 12px;
@@ -142,12 +248,8 @@
       background-color: #f7f9fa;
     }
 
-    .chat-input:focus {
-      border-color: #00b900;
-    }
-
     .send-btn {
-      background-color: #00b900;
+      background-color: var(--line-green);
       color: white;
       border: none;
       border-radius: 50%;
@@ -157,46 +259,80 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 16px;
-      transition: background 0.2s;
-    }
-
-    .send-btn:hover {
-      background-color: #009900;
     }
   </style>
 </head>
 <body>
 
-<div class="chat-container">
-  <div class="chat-header">
-    <span id="header-title">トーク（送信者: ユーザーA）</span>
-    <button class="user-toggle" onclick="toggleUser()">視点を切替 (A/B)</button>
-  </div>
+<div class="app-container">
 
-  <div class="chat-messages" id="message-container">
-    <div class="message received">
-      <div class="message-content">こんにちは！LINE風チャットアプリへようこそ。</div>
-      <div class="message-time">12:00</div>
+  <div id="home-screen" class="screen active">
+    <div class="home-header">ホーム</div>
+    
+    <div class="profile-card">
+      <div class="avatar">👤</div>
+      <div class="profile-info">
+        <div class="name">自分のプロフィール</div>
+        <div class="status">ステータスメッセージを設定できます</div>
+      </div>
+    </div>
+
+    <div class="menu-section">
+      <div class="menu-title">サービス・機能</div>
+      
+      <div class="menu-item" onclick="openChat()">
+        <div class="menu-icon">💬</div>
+        <div class="menu-text">
+          <div class="title">オンラインチャットモード</div>
+          <div class="title" style="font-weight: normal; color: #888;">チャットルームに入室して対話する</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <form class="chat-input-area" onsubmit="sendMessage(event)">
-    <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
-    <button type="submit" class="send-btn">➤</button>
-  </form>
+  <div id="chat-screen" class="screen">
+    <div class="chat-header">
+      <button class="back-btn" onclick="openHome()">◀ 戻る</button>
+      <span id="header-title" style="font-size: 14px;">トーク（送信者: ユーザーA）</span>
+      <button class="user-toggle" onclick="toggleUser()">視点切替</button>
+    </div>
+
+    <div class="chat-messages" id="message-container">
+      <div class="message received">
+        <div class="message-content">ホーム画面からチャットルームに入室しました！</div>
+        <div class="message-time">12:00</div>
+      </div>
+    </div>
+
+    <form class="chat-input-area" onsubmit="sendMessage(event)">
+      <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
+      <button type="submit" class="send-btn">➤</button>
+    </form>
+  </div>
+
 </div>
 
 <script>
   let currentUser = 'ユーザーA';
 
-  // 送信者（視点）の切り替え
+  // 画面切り替え関数
+  function openChat() {
+    document.getElementById('home-screen').classList.remove('active');
+    document.getElementById('chat-screen').classList.add('active');
+  }
+
+  function openHome() {
+    document.getElementById('chat-screen').classList.remove('active');
+    document.getElementById('home-screen').classList.add('active');
+  }
+
+  // 送信者（視点）切り替え
   function toggleUser() {
     currentUser = currentUser === 'ユーザーA' ? 'ユーザーB' : 'ユーザーA';
     document.getElementById('header-title').textContent = `トーク（送信者: ${currentUser}）`;
   }
 
-  // 現在の時刻を取得する関数
+  // 現在時刻の取得
   function getCurrentTime() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -204,7 +340,7 @@
     return `${hours}:${minutes}`;
   }
 
-  // メッセージ送信処理
+  // メッセージ送信
   function sendMessage(event) {
     event.preventDefault();
 
@@ -215,9 +351,7 @@
 
     const container = document.getElementById('message-container');
 
-    // メッセージ要素を作成
     const msgDiv = document.createElement('div');
-    // ユーザーAの時は右側（sent）、ユーザーBの時は左側（received）として描画
     msgDiv.className = `message ${currentUser === 'ユーザーA' ? 'sent' : 'received'}`;
 
     const contentDiv = document.createElement('div');
@@ -232,7 +366,6 @@
     msgDiv.appendChild(timeDiv);
     container.appendChild(msgDiv);
 
-    // 入力欄をクリアして最下部にスクロール
     input.value = '';
     container.scrollTop = container.scrollHeight;
   }
