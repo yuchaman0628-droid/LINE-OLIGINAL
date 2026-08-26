@@ -135,7 +135,8 @@
         <button class="btn" onclick="copyMyId()">コピー</button>
       </div>
       <div class="input-group">
-        <input type="text" id="friend-id-input" placeholder="相手のIDを入力...">
+        <!-- 初期値として user- をセット -->
+        <input type="text" id="friend-id-input" value="user-" placeholder="相手のIDを入力...">
         <button class="btn" onclick="addAndConnectFriend()">追加</button>
       </div>
     </div>
@@ -421,9 +422,14 @@
     if (connections[toPeerId]) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
   }
 
+  // フレンド追加処理 (user- の自動保持)
   function addAndConnectFriend() {
-    const friendId = document.getElementById('friend-id-input').value.trim();
-    if (!friendId || friendId === myId) return alert('無効なIDです');
+    const friendIdInput = document.getElementById('friend-id-input');
+    const friendId = friendIdInput.value.trim();
+    
+    if (!friendId || friendId === 'user-' || friendId === myId) {
+      return alert('有効なIDを入力してください');
+    }
 
     if (!friends[friendId]) {
       friends[friendId] = { name: friendId, avatar: '👤', status: '' };
@@ -431,7 +437,9 @@
     }
 
     setupConnection(peer.connect(friendId));
-    document.getElementById('friend-id-input').value = '';
+    
+    // 送信完了後も user- を残す
+    friendIdInput.value = 'user-';
   }
 
   function sendTextMessage(event) {
@@ -513,7 +521,6 @@
     renderMessages();
   }
 
-  // メッセージ描画（修正: 画像データの二重判定フォールバックを追加）
   function renderMessages() {
     const container = document.getElementById('message-container');
     container.innerHTML = '';
@@ -527,7 +534,6 @@
         unreadMsgIds.push(m.id);
       }
 
-      // システム通知の場合
       if (m.isSystem) {
         const sysDiv = document.createElement('div');
         sysDiv.className = 'system-msg';
@@ -541,7 +547,6 @@
 
       const contentDiv = document.createElement('div');
 
-      // 画像の判別: isImageフラグ、または先頭が data:image/ で始まるか判定（バグ修正）
       const isActualImage = m.isImage || (typeof m.text === 'string' && m.text.startsWith('data:image/'));
 
       if (isActualImage) {
@@ -696,7 +701,6 @@
     renderLists();
   }
 
-  // 後からグループにメンバーを追加するダイアログ
   function openAddMemberModal() {
     const list = document.getElementById('add-member-select-list');
     list.innerHTML = '';
@@ -705,7 +709,6 @@
     if (!group) return;
 
     const allFriendIds = Array.from(new Set([...Object.keys(friends), ...Object.keys(connections)]));
-    // まだグループに参加していないフレンドだけ抽出
     const candidates = allFriendIds.filter(fId => !group.members.includes(fId));
 
     if (candidates.length === 0) {
@@ -725,7 +728,6 @@
     document.getElementById('add-member-modal').classList.add('active');
   }
 
-  // 後からメンバー追加の送信処理
   function submitAddMembers() {
     const group = groups[activeTargetId];
     if (!group) return;
@@ -737,11 +739,9 @@
 
     if (newMemberIds.length === 0) return closeModal('add-member-modal');
 
-    // メンバーリスト更新
     group.members = Array.from(new Set([...group.members, ...newMemberIds]));
     saveDataToStorage();
 
-    // 全員（新旧含む）にグループの最新情報を配信
     group.members.forEach(mId => {
       if (mId !== myId && connections[mId]) {
         connections[mId].send({
@@ -750,7 +750,6 @@
       }
     });
 
-    // チャット画面に「〇〇が追加されました」のシステム通知を出す
     const addedNames = newMemberIds.map(id => (friends[id] ? friends[id].name : id)).join('、');
     dispatchMessage(`${addedNames} がグループに参加しました`, false, false, true);
 
