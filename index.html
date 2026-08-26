@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風アプリ - ホーム & チャット</title>
+  <title>リアルタイムLINE風アプリ</title>
+  <!-- PeerJSライブラリ（別端末間通信用） -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
       --bg-color: #7494C0;
@@ -15,294 +17,106 @@
       --line-green: #06C755;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 
-    body {
-      background-color: #f0f2f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    /* アプリ共通コンテナ */
     .app-container {
-      width: 100%;
-      max-width: 420px;
-      height: 90vh;
-      max-height: 750px;
-      background-color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-      border-radius: 16px;
-      overflow: hidden;
-      position: relative;
+      width: 100%; max-width: 420px; height: 90vh; max-height: 750px;
+      background-color: #ffffff; display: flex; flex-direction: column;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 16px; overflow: hidden;
     }
 
-    /* 画面切り替えの制御 */
-    .screen {
-      display: none;
-      flex-direction: column;
-      height: 100%;
-      width: 100%;
-    }
+    .screen { display: none; flex-direction: column; height: 100%; width: 100%; }
+    .screen.active { display: flex; }
 
-    .screen.active {
-      display: flex;
+    /* ホーム画面 */
+    .home-header { padding: 16px; font-size: 18px; font-weight: bold; border-bottom: 1px solid #eee; }
+    .my-id-card { padding: 16px; background-color: #f7f9fa; border-bottom: 1px solid #eee; }
+    .id-box {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; padding: 8px 12px; border: 1px dashed var(--line-green);
+      border-radius: 8px; margin-top: 6px; font-weight: bold; font-size: 18px; color: #333;
     }
+    .copy-btn { background: var(--line-green); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 
-    /* ------------------------------
-       1. ホーム画面のスタイル
-    ------------------------------ */
-    .home-header {
-      padding: 20px;
-      font-size: 20px;
-      font-weight: bold;
-      border-bottom: 1px solid #eee;
-    }
+    .friend-add-section { padding: 16px; border-bottom: 8px solid #f7f9fa; }
+    .section-title { font-size: 12px; color: #888; font-weight: bold; margin-bottom: 8px; }
+    .input-group { display: flex; gap: 8px; }
+    .input-group input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; outline: none; }
+    .input-group button { background: var(--line-green); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
 
-    .profile-card {
-      display: flex;
-      align-items: center;
-      padding: 20px;
-      gap: 16px;
-      border-bottom: 8px solid #f7f9fa;
+    .friends-list { flex: 1; padding: 16px; overflow-y: auto; }
+    .friend-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px;
+      border-radius: 12px; cursor: pointer; transition: background 0.2s;
     }
+    .friend-item:hover { background-color: #f5f5f5; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; background: #00b900; color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; }
 
-    .avatar {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background-color: #ddd;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 24px;
-    }
-
-    .profile-info .name {
-      font-weight: bold;
-      font-size: 16px;
-    }
-
-    .profile-info .status {
-      font-size: 12px;
-      color: #888;
-      margin-top: 4px;
-    }
-
-    .menu-section {
-      padding: 16px;
-      flex: 1;
-    }
-
-    .menu-title {
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 12px;
-      font-weight: bold;
-    }
-
-    .menu-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .menu-item:hover {
-      background-color: #f5f5f5;
-    }
-
-    .menu-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background-color: var(--line-green);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 20px;
-    }
-
-    .menu-text .title {
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    .menu-text .desc {
-      font-size: 11px;
-      color: #888;
-    }
-
-    /* ------------------------------
-       2. チャット画面のスタイル
-    ------------------------------ */
-    #chat-screen {
-      background-color: var(--bg-color);
-    }
-
-    .chat-header {
-      background-color: var(--header-bg);
-      color: white;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .back-btn {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      padding: 4px 8px;
-    }
-
-    .user-toggle {
-      background-color: #3b4a54;
-      color: white;
-      border: 1px solid #52636d;
-      padding: 4px 10px;
-      border-radius: 16px;
-      cursor: pointer;
-      font-size: 11px;
-    }
-
-    .chat-messages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .message {
-      display: flex;
-      align-items: flex-end;
-      gap: 6px;
-      max-width: 80%;
-    }
-
-    .message-content {
-      padding: 10px 14px;
-      border-radius: 18px;
-      font-size: 14px;
-      line-height: 1.4;
-      word-break: break-word;
-      color: var(--text-color);
-    }
-
-    .message-time {
-      font-size: 10px;
-      color: var(--time-color);
-      white-space: nowrap;
-    }
-
-    .message.sent {
-      align-self: flex-end;
-      flex-direction: row-reverse;
-    }
-
-    .message.sent .message-content {
-      background-color: var(--my-msg-bg);
-      border-bottom-right-radius: 4px;
-    }
-
-    .message.received {
-      align-self: flex-start;
-    }
-
-    .message.received .message-content {
-      background-color: var(--other-msg-bg);
-      border-bottom-left-radius: 4px;
-    }
-
-    .chat-input-area {
-      background-color: #ffffff;
-      padding: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .chat-input {
-      flex: 1;
-      border: 1px solid #e0e0e0;
-      border-radius: 20px;
-      padding: 10px 16px;
-      outline: none;
-      font-size: 14px;
-      background-color: #f7f9fa;
-    }
-
-    .send-btn {
-      background-color: var(--line-green);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+    /* チャット画面 */
+    #chat-screen { background-color: var(--bg-color); }
+    .chat-header { background-color: var(--header-bg); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .back-btn { background: none; border: none; color: white; font-size: 16px; cursor: pointer; }
+    .chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .message { display: flex; align-items: flex-end; gap: 6px; max-width: 80%; }
+    .message-content { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+    .message-time { font-size: 10px; color: var(--time-color); white-space: nowrap; }
+    .message.sent { align-self: flex-end; flex-direction: row-reverse; }
+    .message.sent .message-content { background-color: var(--my-msg-bg); border-bottom-right-radius: 4px; }
+    .message.received { align-self: flex-start; }
+    .message.received .message-content { background-color: var(--other-msg-bg); border-bottom-left-radius: 4px; }
+    .chat-input-area { background-color: #ffffff; padding: 12px; display: flex; gap: 8px; }
+    .chat-input { flex: 1; border: 1px solid #e0e0e0; border-radius: 20px; padding: 10px 16px; outline: none; }
+    .send-btn { background-color: var(--line-green); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; }
   </style>
 </head>
 <body>
 
 <div class="app-container">
 
+  <!-- 1. ホーム画面 -->
   <div id="home-screen" class="screen active">
     <div class="home-header">ホーム</div>
     
-    <div class="profile-card">
-      <div class="avatar">👤</div>
-      <div class="profile-info">
-        <div class="name">自分のプロフィール</div>
-        <div class="status">ステータスメッセージを設定できます</div>
+    <!-- 自分のID表示エリア -->
+    <div class="my-id-card">
+      <div class="section-title">あなたのフレンドID（相手に教えてください）</div>
+      <div class="id-box">
+        <span id="my-peer-id">発行中...</span>
+        <button class="copy-btn" onclick="copyMyId()">コピー</button>
       </div>
     </div>
 
-    <div class="menu-section">
-      <div class="menu-title">サービス・機能</div>
-      
-      <div class="menu-item" onclick="openChat()">
-        <div class="menu-icon">💬</div>
-        <div class="menu-text">
-          <div class="title">オンラインチャットモード</div>
-          <div class="title" style="font-weight: normal; color: #888;">チャットルームに入室して対話する</div>
-        </div>
+    <!-- フレンド追加エリア -->
+    <div class="friend-add-section">
+      <div class="section-title">IDでフレンドを追加・接続</div>
+      <div class="input-group">
+        <input type="text" id="friend-id-input" placeholder="相手のIDを入力...">
+        <button onclick="addAndConnectFriend()">追加</button>
+      </div>
+    </div>
+
+    <!-- フレンド一覧エリア -->
+    <div class="friends-list">
+      <div class="section-title">トーク一覧</div>
+      <div id="friends-container">
+        <!-- 追加されたフレンドがここに表示されます -->
+        <p id="no-friends" style="font-size: 12px; color: #aaa; text-align: center; margin-top: 20px;">
+          まだフレンドがいません。IDを入力して追加してください。
+        </p>
       </div>
     </div>
   </div>
 
+  <!-- 2. チャット画面 -->
   <div id="chat-screen" class="screen">
     <div class="chat-header">
       <button class="back-btn" onclick="openHome()">◀ 戻る</button>
-      <span id="header-title" style="font-size: 14px;">トーク（送信者: ユーザーA）</span>
-      <button class="user-toggle" onclick="toggleUser()">視点切替</button>
+      <span id="chat-target-name">チャット</span>
+      <div style="width: 40px;"></div>
     </div>
 
-    <div class="chat-messages" id="message-container">
-      <div class="message received">
-        <div class="message-content">ホーム画面からチャットルームに入室しました！</div>
-        <div class="message-time">12:00</div>
-      </div>
-    </div>
+    <div class="chat-messages" id="message-container"></div>
 
     <form class="chat-input-area" onsubmit="sendMessage(event)">
       <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
@@ -313,62 +127,152 @@
 </div>
 
 <script>
-  let currentUser = 'ユーザーA';
+  let peer = null;
+  let activeConnection = null;
+  const connections = {}; // 追加された接続を保存するオブジェクト
 
-  // 画面切り替え関数
-  function openChat() {
+  // ランダムな5桁のIDを生成（接続時の識別子用）
+  const myGeneratedId = 'user-' + Math.floor(10000 + Math.random() * 90000);
+
+  // PeerJSの初期化（サーバーへ接続して自分のIDを取得）
+  function initPeer() {
+    peer = new Peer(myGeneratedId);
+
+    peer.on('open', (id) => {
+      document.getElementById('my-peer-id').textContent = id;
+    });
+
+    // 相手から接続要求（フレンド申請/メッセージ）が届いたときの受取処理
+    peer.on('connection', (conn) => {
+      setupConnection(conn);
+    });
+  }
+
+  // 接続のセットアップ
+  function setupConnection(conn) {
+    connections[conn.peer] = conn;
+
+    conn.on('open', () => {
+      addFriendToList(conn.peer);
+    });
+
+    // メッセージを受信したときの処理
+    conn.on('data', (data) => {
+      appendMessage(data.text, 'received', data.time);
+    });
+
+    conn.on('close', () => {
+      console.log("切断されました: ", conn.peer);
+    });
+  }
+
+  // 自分から相手のIDを指定して接続・追加する処理
+  function addAndConnectFriend() {
+    const friendId = document.getElementById('friend-id-input').value.trim();
+    if (!friendId) return alert('相手のIDを入力してください');
+    if (friendId === myGeneratedId) return alert('自分のIDは追加できません');
+
+    if (connections[friendId]) {
+      alert('すでにリストに存在します');
+      return;
+    }
+
+    // 相手へ接続を試みる
+    const conn = peer.connect(friendId);
+    setupConnection(conn);
+    document.getElementById('friend-id-input').value = '';
+  }
+
+  // リストにフレンド要素を表示する
+  function addFriendToList(friendId) {
+    const noFriendsText = document.getElementById('no-friends');
+    if (noFriendsText) noFriendsText.style.display = 'none';
+
+    // 重複追加の防止
+    if (document.getElementById(`friend-${friendId}`)) return;
+
+    const container = document.getElementById('friends-container');
+    const item = document.createElement('div');
+    item.className = 'friend-item';
+    item.id = `friend-${friendId}`;
+    item.onclick = () => openChat(friendId);
+
+    item.innerHTML = `
+      <div class="avatar">👤</div>
+      <div>
+        <div style="font-weight: bold; font-size: 14px;">${friendId}</div>
+        <div style="font-size: 11px; color: var(--line-green);">● オンライン (タップしてトーク)</div>
+      </div>
+    `;
+    container.appendChild(item);
+  }
+
+  // チャット画面を開く
+  function openChat(friendId) {
+    activeConnection = connections[friendId];
+    document.getElementById('chat-target-name').textContent = friendId;
     document.getElementById('home-screen').classList.remove('active');
     document.getElementById('chat-screen').classList.add('active');
   }
 
+  // ホーム画面へ戻る
   function openHome() {
     document.getElementById('chat-screen').classList.remove('active');
     document.getElementById('home-screen').classList.add('active');
   }
 
-  // 送信者（視点）切り替え
-  function toggleUser() {
-    currentUser = currentUser === 'ユーザーA' ? 'ユーザーB' : 'ユーザーA';
-    document.getElementById('header-title').textContent = `トーク（送信者: ${currentUser}）`;
-  }
-
-  // 現在時刻の取得
-  function getCurrentTime() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
-
-  // メッセージ送信
+  // メッセージ送信処理
   function sendMessage(event) {
     event.preventDefault();
-
     const input = document.getElementById('message-input');
     const text = input.value.trim();
 
-    if (text === '') return;
+    if (!text || !activeConnection) return;
 
-    const container = document.getElementById('message-container');
+    const time = getCurrentTime();
 
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${currentUser === 'ユーザーA' ? 'sent' : 'received'}`;
+    // 相手のデバイスへP2Pでデータを送信
+    activeConnection.send({ text: text, time: time });
 
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.textContent = text;
-
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'message-time';
-    timeDiv.textContent = getCurrentTime();
-
-    msgDiv.appendChild(contentDiv);
-    msgDiv.appendChild(timeDiv);
-    container.appendChild(msgDiv);
-
+    // 自分の画面に表示
+    appendMessage(text, 'sent', time);
     input.value = '';
+  }
+
+  // 画面に吹き出しを追加
+  function appendMessage(text, type, time) {
+    const container = document.getElementById('message-container');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${type}`;
+
+    msgDiv.innerHTML = `
+      <div class="message-content">${escapeHTML(text)}</div>
+      <div class="message-time">${time}</div>
+    `;
+
+    container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
   }
+
+  function getCurrentTime() {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function copyMyId() {
+    const idText = document.getElementById('my-peer-id').textContent;
+    navigator.clipboard.writeText(idText);
+    alert('IDをコピーしました: ' + idText);
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
+
+  // 起動時の初期化
+  window.onload = initPeer;
 </script>
 
 </body>
