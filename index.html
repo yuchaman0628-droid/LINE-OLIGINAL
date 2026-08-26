@@ -37,8 +37,36 @@
       background-color: #0084ff;
       color: #ffffff;
       padding: 16px;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .chat-title {
       font-weight: bold;
+      font-size: 16px;
+      max-width: 80%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .edit-title-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .edit-title-btn:hover {
+      opacity: 1;
+      background-color: rgba(255, 255, 255, 0.2);
     }
 
     /* メッセージ表示エリア */
@@ -64,10 +92,6 @@
       background-color: #0084ff;
       color: white;
       border-bottom-right-radius: 4px;
-    }
-
-    .message media-content {
-      margin-top: 6px;
     }
 
     .message img, 
@@ -179,8 +203,10 @@
 <body>
 
 <div class="chat-container">
+  <!-- ヘッダーエリア -->
   <div class="chat-header">
-    チャットルーム（画像・動画対応）
+    <span class="chat-title" id="chatTitle">グループチャット</span>
+    <button class="edit-title-btn" title="グループ名を変更" onclick="editChatTitle()">✏️</button>
   </div>
 
   <div class="chat-messages" id="chatMessages">
@@ -198,12 +224,9 @@
 
   <!-- 入力フォーム -->
   <div class="chat-input-container">
-    <!-- 画像添付ボタン -->
     <button class="attach-btn" title="画像を添付" onclick="document.getElementById('imageInput').click()">🖼️</button>
-    <!-- 動画添付ボタン -->
     <button class="attach-btn" title="動画を添付" onclick="document.getElementById('videoInput').click()">🎥</button>
 
-    <!-- 非表示のファイル入力要素 -->
     <input type="file" id="imageInput" accept="image/*" onchange="handleFileSelect(event, 'image')">
     <input type="file" id="videoInput" accept="video/*" onchange="handleFileSelect(event, 'video')">
 
@@ -214,9 +237,20 @@
 
 <script>
   let currentFile = null;
-  let currentFileType = null; // 'image' または 'video'
+  let currentFileType = null;
 
-  // ファイルが選択された時の処理
+  // グループ名の変更処理
+  function editChatTitle() {
+    const titleEl = document.getElementById('chatTitle');
+    const currentTitle = titleEl.textContent;
+    const newTitle = prompt('新しいグループ名を入力してください:', currentTitle);
+
+    if (newTitle !== null && newTitle.trim() !== '') {
+      titleEl.textContent = newTitle.trim();
+    }
+  }
+
+  // ファイル選択時の処理
   function handleFileSelect(event, type) {
     const file = event.target.files[0];
     if (!file) return;
@@ -228,7 +262,6 @@
     const previewMedia = document.getElementById('previewMedia');
     const previewFileName = document.getElementById('previewFileName');
 
-    // 一時生成したURLでプレビュー
     const fileUrl = URL.createObjectURL(file);
     previewMedia.innerHTML = '';
 
@@ -257,35 +290,30 @@
     document.getElementById('previewMedia').innerHTML = '';
   }
 
-  // エンターキーで送信
+  // エンターキー送信
   function handleKeyPress(event) {
     if (event.key === 'Enter') {
       sendMessage();
     }
   }
 
-  // メッセージ送信処理
+  // メッセージ送信
   function sendMessage() {
     const textInput = document.getElementById('textInput');
     const text = textInput.value.trim();
 
-    // テキストもファイルもない場合は何もしない
     if (!text && !currentFile) return;
 
     const chatMessages = document.getElementById('chatMessages');
-
-    // メッセージ要素作成
     const messageEl = document.createElement('div');
     messageEl.className = 'message sent';
 
-    // テキストがあれば追加
     if (text) {
       const textNode = document.createElement('div');
       textNode.textContent = text;
       messageEl.appendChild(textNode);
     }
 
-    // ファイルがあれば画像または動画エレメントを作成
     if (currentFile) {
       const fileUrl = URL.createObjectURL(currentFile);
 
@@ -296,18 +324,15 @@
       } else if (currentFileType === 'video') {
         const video = document.createElement('video');
         video.src = fileUrl;
-        video.controls = true; // 動画の再生・一時停止コントロールを表示
+        video.controls = true;
         video.playsInline = true;
         messageEl.appendChild(video);
       }
     }
 
     chatMessages.appendChild(messageEl);
-
-    // スクロールを一番下に移動
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // 入力欄と添付エリアをクリア
     textInput.value = '';
     clearAttachment();
   }
