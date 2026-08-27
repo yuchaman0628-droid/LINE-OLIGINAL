@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -188,24 +187,82 @@
     }
     .admin-card h4 { font-size: 13px; color: #d97706; margin-bottom: 6px; }
 
-    /* BAN全画面オーバーレイ */
+    /* BANバグ崩壊全画面オーバーレイ */
     .banned-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: #0f172a; color: #ef4444; z-index: 99999; flex-direction: column;
+      background: #000000; color: #ff0033; z-index: 9999999; flex-direction: column;
       justify-content: center; align-items: center; text-align: center; padding: 20px;
+      font-family: monospace, sans-serif; overflow: hidden; user-select: none;
+      animation: bgGlitch 0.2s infinite alternate;
     }
     .banned-overlay.active { display: flex; }
-    .banned-icon { font-size: 64px; margin-bottom: 16px; }
-    .banned-title { font-size: 22px; font-weight: bold; margin-bottom: 8px; color: #ef4444; }
-    .banned-text { font-size: 13px; color: #94a3b8; max-width: 280px; line-height: 1.6; }
+
+    @keyframes bgGlitch {
+      0% { background-color: #000000; }
+      50% { background-color: #0d0003; }
+      100% { background-color: #120000; }
+    }
+
+    .glitch-box {
+      border: 2px solid #ff0033; padding: 24px; background: rgba(255, 0, 51, 0.05);
+      box-shadow: 0 0 20px #ff0033, inset 0 0 15px #ff0033; max-width: 360px; width: 90%;
+      position: relative; animation: boxShake 0.1s infinite;
+    }
+
+    @keyframes boxShake {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(-2px, 1px); }
+      50% { transform: translate(1px, -2px); }
+      75% { transform: translate(-1px, -1px); }
+      100% { transform: translate(2px, 1px); }
+    }
+
+    .banned-icon {
+      font-size: 72px; margin-bottom: 10px; text-shadow: 3px 3px #00ffff, -3px -3px #ff0055;
+      animation: iconDistort 0.15s infinite;
+    }
+
+    @keyframes iconDistort {
+      0% { transform: scale(1) skewX(0deg); }
+      50% { transform: scale(1.1) skewX(10deg); }
+      100% { transform: scale(0.9) skewX(-10deg); }
+    }
+
+    .banned-title {
+      font-size: 24px; font-weight: 900; letter-spacing: 2px; color: #fff;
+      text-shadow: 2px 2px #ff0033, -2px -2px #00ffff; margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .banned-text {
+      font-size: 13px; color: #ff6666; line-height: 1.6; font-weight: bold;
+      text-shadow: 0 0 5px #ff0000;
+    }
+
+    .glitch-code {
+      margin-top: 15px; font-size: 10px; color: #00ff66; background: #000;
+      padding: 8px; border: 1px dashed #00ff66; opacity: 0.8; word-break: break-all;
+      text-align: left; max-height: 80px; overflow: hidden;
+    }
   </style>
 </head>
 <body>
 
 <div class="banned-overlay" id="banned-overlay">
-  <div class="banned-icon">🚫</div>
-  <div class="banned-title">BANされました</div>
-  <div class="banned-text">管理者によってアカウントが停止されています。<br>解除されるまでアプリを利用することはできません。</div>
+  <div class="glitch-box">
+    <div class="banned-icon">☠️</div>
+    <div class="banned-title">SYSTEM CORRUPTED</div>
+    <div class="banned-text">
+      [FATAL ERROR: ACCOUNT BANNED]<br>
+      管理者により永久アカウント停止措置が適用されました。<br>
+      アクセストークンは完全に無効化されています。
+    </div>
+    <div class="glitch-code" id="glitch-code-disp">
+      ERR_BAN_PERMANENT_LOCKOUT<br>
+      0x000000F4_CRITICAL_PROCESS_DIED<br>
+      RESTRICTED_ACCESS_DENIED_BY_ADMIN
+    </div>
+  </div>
 </div>
 
 <div class="app-container">
@@ -441,13 +498,58 @@
   let localStream = null;
   let incomingCall = null;
 
+  /* バグ崩壊BAN画面の完全制御 */
   function showBannedOverlay(show) {
     const overlay = document.getElementById('banned-overlay');
     if (show) {
       overlay.classList.add('active');
+      // 全ての操作を無効化
+      window.addEventListener('keydown', blockAllEvents, true);
+      window.addEventListener('keyup', blockAllEvents, true);
+      window.addEventListener('keypress', blockAllEvents, true);
+      window.addEventListener('click', blockAllEvents, true);
+      window.addEventListener('contextmenu', blockAllEvents, true);
+      window.addEventListener('touchstart', blockAllEvents, true);
+      
+      // Peer切断
+      if (peer) {
+        try { peer.destroy(); } catch(e){}
+      }
+      
+      // ランダムバグテキスト生成
+      startGlitchAnimation();
     } else {
       overlay.classList.remove('active');
+      window.removeEventListener('keydown', blockAllEvents, true);
+      window.removeEventListener('keyup', blockAllEvents, true);
+      window.removeEventListener('keypress', blockAllEvents, true);
+      window.removeEventListener('click', blockAllEvents, true);
+      window.removeEventListener('contextmenu', blockAllEvents, true);
+      window.removeEventListener('touchstart', blockAllEvents, true);
     }
+  }
+
+  function blockAllEvents(e) {
+    if (isBannedSelf) {
+      e.stopPropagation();
+      e.preventDefault();
+      return false;
+    }
+  }
+
+  function startGlitchAnimation() {
+    const glitchEl = document.getElementById('glitch-code-disp');
+    if (!glitchEl) return;
+    
+    setInterval(() => {
+      if (!isBannedSelf) return;
+      const chars = '0123456789ABCDEF_!@#$%^&*()<=>?[]{}';
+      let randomHex = '0x';
+      for(let i=0; i<8; i++) randomHex += chars[Math.floor(Math.random()*16)];
+      glitchEl.innerHTML = `FATAL_CORRUPTION: ${randomHex}<br>` +
+                           `SYSTEM_HALTED: BAN_PERMANENT<br>` +
+                           `MEMORY_DUMP: ${Array.from({length: 12}, () => chars[Math.floor(Math.random()*chars.length)]).join('')}`;
+    }, 80);
   }
 
   /* 秘密コマンド判定 */
@@ -556,7 +658,7 @@
         });
       } catch(e){}
     } else {
-      if (confirm(`ID: ${pId} をBANしますか？\n（接続を強制切断しメッセージ送受信を拒否します）`)) {
+      if (confirm(`ID: ${pId} をBANしますか？\n（相手をバグ崩壊画面にして完全にロックします）`)) {
         bannedUsers.push(pId);
         if (connections[pId]) {
           try {
@@ -654,7 +756,7 @@
         if (data.messages) messages = data.messages;
         if (data.wallpapers) wallpapers = data.wallpapers;
         if (data.bannedUsers) bannedUsers = data.bannedUsers;
-        if (data.isBannedSelf) isBannedSelf = data.isBannedSelf;
+        if (data.isBannedSelf !== undefined) isBannedSelf = data.isBannedSelf;
         if (data.isDarkMode) {
           isDarkMode = data.isDarkMode;
           if (isDarkMode) {
@@ -667,7 +769,11 @@
     document.getElementById('my-avatar-disp').innerHTML = renderAvatarHTML(myProfile.avatar);
     document.getElementById('my-status-disp').textContent = myProfile.status || '';
     updateAdminUI();
-    if (isBannedSelf) showBannedOverlay(true);
+
+    // BANフラグ保持チェック
+    if (isBannedSelf) {
+      showBannedOverlay(true);
+    }
   }
 
   function saveDataToStorage() {
@@ -709,6 +815,8 @@
     loadStoredData();
     checkNotificationPermission();
 
+    if (isBannedSelf) return; // 自分がBANされている場合はPeer初期化停止
+
     if (!myId) {
       myId = 'user-' + Math.floor(10000 + Math.random() * 90000);
       saveDataToStorage();
@@ -741,12 +849,14 @@
   }
 
   function autoReconnectFriends() {
+    if (isBannedSelf) return;
     Object.keys(friends).forEach(fId => {
       if (!connections[fId] && !bannedUsers.includes(fId)) setupConnection(peer.connect(fId));
     });
   }
 
   function setupConnection(conn) {
+    if (isBannedSelf) return;
     if (bannedUsers.includes(conn.peer)) {
       conn.on('open', () => {
         try { conn.send({ type: 'ban-status', banned: true }); } catch(e){}
@@ -771,7 +881,7 @@
   }
 
   function syncMessageHistory(peerId) {
-    if (!connections[peerId] || bannedUsers.includes(peerId)) return;
+    if (!connections[peerId] || bannedUsers.includes(peerId) || isBannedSelf) return;
 
     if (messages[peerId]) {
       connections[peerId].send({
@@ -1159,7 +1269,7 @@
   }
 
   function dispatchMessage(content, isSticker, isImage, isVideo, isSystem = false, isAudio = false) {
-    if (!activeTargetId) return;
+    if (!activeTargetId || isBannedSelf) return;
 
     const time = getCurrentTime();
     const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
