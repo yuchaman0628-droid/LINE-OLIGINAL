@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ Complete (Stamp Studio Edition)</title>
+  <title>LINE風チャットアプリ Complete (Admin & Unban Edition)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -127,12 +127,10 @@
 
     .sticker-palette {
       display: none; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 12px;
-      background: var(--sub-bg); border-top: 1px solid var(--border-color); max-height: 160px; overflow-y: auto; text-align: center; font-size: 28px;
+      background: var(--sub-bg); border-top: 1px solid var(--border-color); max-height: 140px; overflow-y: auto; text-align: center; font-size: 28px;
     }
     .sticker-palette.active { display: grid; }
-    .sticker-item { cursor: pointer; display: flex; justify-content: center; align-items: center; }
-    .sticker-item img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; }
-    .sticker-add-btn { font-size: 18px; font-weight: bold; background: var(--line-green); color: white; border-radius: 8px; height: 48px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+    .sticker-item { cursor: pointer; }
 
     /* モーダル */
     .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
@@ -140,11 +138,6 @@
     .modal { background: var(--card-bg); color: var(--text-color); padding: 20px; border-radius: 12px; width: 85%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
     .member-select-list { max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); padding: 6px; border-radius: 6px; }
-
-    /* スタンプ作成キャンバスデザイン */
-    .stamp-canvas-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    #stamp-canvas { border: 2px dashed #ccc; background: #fff; border-radius: 8px; cursor: crosshair; touch-action: none; }
-    .stamp-tools { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; justify-content: space-between; align-items: center; font-size: 12px; }
 
     /* 画像全画面表示 */
     .image-viewer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; }
@@ -345,7 +338,6 @@
       </div>
 
       <div class="sticker-palette" id="sticker-palette">
-        <div class="sticker-add-btn" onclick="openStampMakerModal()">＋作成</div>
         <span class="sticker-item" onclick="sendSticker('👍')">👍</span>
         <span class="sticker-item" onclick="sendSticker('🎉')">🎉</span>
         <span class="sticker-item" onclick="sendSticker('❤️')">❤️</span>
@@ -363,48 +355,6 @@
         <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
         <button type="submit" class="btn">➤</button>
       </form>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="stamp-maker-modal">
-    <div class="modal" style="max-width: 360px;">
-      <h3>🎨 自作スタンプ工房</h3>
-      <div class="stamp-canvas-container">
-        <canvas id="stamp-canvas" width="200" height="200"></canvas>
-      </div>
-      
-      <div class="stamp-tools">
-        <label>色: <input type="color" id="stamp-color-picker" value="#000000"></label>
-        <label>太さ: <input type="range" id="stamp-pen-width" min="1" max="20" value="4" style="width: 60px;"></label>
-        <button class="btn btn-danger btn-small" onclick="clearStampCanvas()">クリア</button>
-      </div>
-
-      <div style="border-top: 1px dashed var(--border-color); padding-top: 6px;">
-        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">🔤 文字追加:</div>
-        <div style="display: flex; gap: 4px; margin-bottom: 4px;">
-          <input type="text" id="stamp-text-input" placeholder="テキスト..." style="flex:1; padding: 4px; font-size: 11px;">
-          <select id="stamp-font-select" style="font-size: 11px; padding: 4px;">
-            <option value="sans-serif">ゴシック</option>
-            <option value="serif">明朝体</option>
-            <option value="cursive">手書き風</option>
-            <option value="Impact">インパクト</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          <label style="font-size: 11px;">文字色: <input type="color" id="stamp-text-color" value="#ff0000"></label>
-          <button class="btn btn-small" style="flex: 1;" onclick="addTextToCanvas()">文字を書き込む</button>
-        </div>
-      </div>
-
-      <div style="border-top: 1px dashed var(--border-color); padding-top: 6px;">
-        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">🖼️ 写真を取り込む:</div>
-        <input type="file" id="stamp-photo-input" accept="image/*" style="font-size: 11px; width: 100%;" onchange="addPhotoToCanvas(event)">
-      </div>
-
-      <div class="modal-btns">
-        <button class="btn btn-secondary" onclick="closeModal('stamp-maker-modal')">キャンセル</button>
-        <button class="btn btn-success" onclick="saveCustomStamp()">保存して追加</button>
-      </div>
     </div>
   </div>
 
@@ -513,8 +463,8 @@
 </div>
 
 <script>
-  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V4';
-  const ADMIN_PASSCODE = 'admin777';
+  const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V3';
+  const ADMIN_PASSCODE = 'admin777'; // 管理者パスコード
 
   let peer = null;
   let myId = '';
@@ -526,18 +476,19 @@
   let messages = {};
   let wallpapers = {};
   let bannedUsers = [];
-  let myCustomStickers = [];
   let isDarkMode = false;
   let isBannedSelf = false;
 
   let activeTargetId = null;
   let isGroupTarget = false;
 
+  // 秘密コマンド連打カウンター
   let secretClickCount = 0;
   let secretClickTimer = null;
   let glitchClickCount = 0;
   let glitchClickTimer = null;
 
+  // 録音関連変数
   let mediaRecorder = null;
   let audioChunks = [];
   let isRecording = false;
@@ -545,13 +496,12 @@
   let recordSeconds = 0;
   let audioStream = null;
 
+  // 通話関連変数
   let currentCall = null;
   let localStream = null;
   let incomingCall = null;
 
-  let stampCanvas, stampCtx;
-  let isDrawingStamp = false;
-
+  /* BAN画面の制御と隠し救済コマンド */
   function showBannedOverlay(show) {
     const overlay = document.getElementById('banned-overlay');
     if (show) {
@@ -580,6 +530,7 @@
 
   function blockAllEvents(e) {
     if (isBannedSelf) {
+      // BAN画面のドクロマーク(banned-glitch-icon)のクリックだけは緊急救済のため許可
       if (e.target && e.target.id === 'banned-glitch-icon') {
         return true;
       }
@@ -589,6 +540,7 @@
     }
   }
 
+  /* BANされた画面で☠️アイコンを5回連続タップすると、緊急マスターパスコードで復活可能 */
   function handleGlitchSecretClick() {
     glitchClickCount++;
     clearTimeout(glitchClickTimer);
@@ -628,6 +580,7 @@
     }, 80);
   }
 
+  /* ホームヘッダー5回タップで管理者ログイン */
   function handleSecretHomeClick() {
     secretClickCount++;
     clearTimeout(secretClickTimer);
@@ -722,11 +675,14 @@
     document.getElementById('admin-modal').classList.add('active');
   }
 
+  /* BAN & BAN解除（復活）のコア処理 */
   function toggleBanUser(pId) {
     if (bannedUsers.includes(pId)) {
+      // --- BAN解除（復活）処理 ---
       bannedUsers = bannedUsers.filter(id => id !== pId);
       saveDataToStorage();
 
+      // 相手にBAN解除通知を送信して画面を自動復旧させる
       try {
         const conn = peer.connect(pId);
         conn.on('open', () => {
@@ -736,6 +692,7 @@
 
       alert(`✅ ユーザー ${pId} のBANを解除し、アカウントを復活させました！`);
     } else {
+      // --- BAN実行処理 ---
       if (confirm(`ID: ${pId} をBANしますか？\n（相手をバグ崩壊画面にして完全にロックします）`)) {
         bannedUsers.push(pId);
         if (connections[pId]) {
@@ -833,7 +790,6 @@
         if (data.messages) messages = data.messages;
         if (data.wallpapers) wallpapers = data.wallpapers;
         if (data.bannedUsers) bannedUsers = data.bannedUsers;
-        if (data.myCustomStickers) myCustomStickers = data.myCustomStickers;
         if (data.isBannedSelf !== undefined) isBannedSelf = data.isBannedSelf;
         if (data.isDarkMode) {
           isDarkMode = data.isDarkMode;
@@ -856,7 +812,7 @@
   function saveDataToStorage() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, bannedUsers: bannedUsers, myCustomStickers: myCustomStickers, isDarkMode: isDarkMode, isBannedSelf: isBannedSelf
+        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, bannedUsers: bannedUsers, isDarkMode: isDarkMode, isBannedSelf: isBannedSelf
       }));
     } catch (e) {
       console.warn("Storage quota exceeded", e);
@@ -891,7 +847,6 @@
   function initPeer() {
     loadStoredData();
     checkNotificationPermission();
-    initStampStudio();
 
     if (isBannedSelf) return;
 
@@ -924,7 +879,6 @@
     });
 
     renderLists();
-    renderStickerPalette();
   }
 
   function autoReconnectFriends() {
@@ -984,6 +938,7 @@
   }
 
   function handleIncomingData(fromPeerId, data) {
+    /* リアルタイムBAN/BAN解除受信処理 */
     if (data.type === 'ban-status' || data.type === 'banned') {
       const bannedState = (data.banned !== undefined) ? data.banned : true;
       isBannedSelf = bannedState;
@@ -993,6 +948,7 @@
         showBannedOverlay(true);
         if (connections[fromPeerId]) connections[fromPeerId].close();
       } else {
+        // BAN解除されたら自動的に復旧してページ再読み込み
         showBannedOverlay(false);
         alert("🎉 管理者によってBANが解除されました！アプリを正常復帰します。");
         location.reload();
@@ -1126,123 +1082,9 @@
     document.getElementById('sticker-palette').classList.remove('active');
   }
 
-  function sendSticker(val) {
-    if (val.startsWith('data:image/')) {
-      dispatchMessage(val, false, true, false, false, false);
-    } else {
-      dispatchMessage(val, true, false, false, false, false);
-    }
+  function sendSticker(emoji) {
+    dispatchMessage(emoji, true, false, false, false, false);
     document.getElementById('sticker-palette').classList.remove('active');
-  }
-
-  /* --- スタンプ自作機能のロジック --- */
-  function initStampStudio() {
-    stampCanvas = document.getElementById('stamp-canvas');
-    if (!stampCanvas) return;
-    stampCtx = stampCanvas.getContext('2d');
-    clearStampCanvas();
-
-    const getPos = (e) => {
-      const rect = stampCanvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
-    };
-
-    const startDraw = (e) => {
-      isDrawingStamp = true;
-      const pos = getPos(e);
-      stampCtx.beginPath();
-      stampCtx.moveTo(pos.x, pos.y);
-    };
-
-    const draw = (e) => {
-      if (!isDrawingStamp) return;
-      const pos = getPos(e);
-      stampCtx.lineTo(pos.x, pos.y);
-      stampCtx.strokeStyle = document.getElementById('stamp-color-picker').value;
-      stampCtx.lineWidth = document.getElementById('stamp-pen-width').value;
-      stampCtx.lineCap = 'round';
-      stampCtx.stroke();
-    };
-
-    const stopDraw = () => { isDrawingStamp = false; };
-
-    stampCanvas.addEventListener('mousedown', startDraw);
-    stampCanvas.addEventListener('mousemove', draw);
-    stampCanvas.addEventListener('mouseup', stopDraw);
-    stampCanvas.addEventListener('mouseleave', stopDraw);
-
-    stampCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDraw(e); });
-    stampCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
-    stampCanvas.addEventListener('touchend', stopDraw);
-  }
-
-  function clearStampCanvas() {
-    stampCtx.clearRect(0, 0, stampCanvas.width, stampCanvas.height);
-  }
-
-  function addTextToCanvas() {
-    const text = document.getElementById('stamp-text-input').value.trim();
-    if (!text) return;
-    const font = document.getElementById('stamp-font-select').value;
-    const color = document.getElementById('stamp-text-color').value;
-
-    stampCtx.fillStyle = color;
-    stampCtx.font = `bold 24px ${font}`;
-    stampCtx.textAlign = 'center';
-    stampCtx.textBaseline = 'middle';
-    stampCtx.fillText(text, stampCanvas.width / 2, stampCanvas.height / 2);
-    document.getElementById('stamp-text-input').value = '';
-  }
-
-  function addPhotoToCanvas(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        stampCtx.drawImage(img, 0, 0, stampCanvas.width, stampCanvas.height);
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-    event.target.value = '';
-  }
-
-  function openStampMakerModal() {
-    clearStampCanvas();
-    document.getElementById('stamp-text-input').value = '';
-    document.getElementById('stamp-maker-modal').classList.add('active');
-  }
-
-  function saveCustomStamp() {
-    const dataUrl = stampCanvas.toDataURL('image/png');
-    myCustomStickers.push(dataUrl);
-    saveDataToStorage();
-    renderStickerPalette();
-    closeModal('stamp-maker-modal');
-  }
-
-  function renderStickerPalette() {
-    const palette = document.getElementById('sticker-palette');
-    palette.innerHTML = `
-      <div class="sticker-add-btn" onclick="openStampMakerModal()">＋作成</div>
-      <span class="sticker-item" onclick="sendSticker('👍')">👍</span>
-      <span class="sticker-item" onclick="sendSticker('🎉')">🎉</span>
-      <span class="sticker-item" onclick="sendSticker('❤️')">❤️</span>
-      <span class="sticker-item" onclick="sendSticker('😊')">😊</span>
-      <span class="sticker-item" onclick="sendSticker('🔥')">🔥</span>
-    `;
-
-    myCustomStickers.forEach((stData) => {
-      const span = document.createElement('span');
-      span.className = 'sticker-item';
-      span.onclick = () => sendSticker(stData);
-      span.innerHTML = `<img src="${stData}" alt="自作スタンプ">`;
-      palette.appendChild(span);
-    });
   }
 
   function handleImageSelect(event) {
@@ -1666,6 +1508,7 @@
     });
   }
 
+  /* フレンド削除処理 */
   function deleteFriend(fId) {
     const name = friends[fId] ? friends[fId].name : fId;
     if (confirm(`フレンド「${name}」を削除しますか？\n（トーク履歴も消去されます）`)) {
@@ -1682,6 +1525,7 @@
     }
   }
 
+  /* グループ削除処理 */
   function deleteGroup(gId) {
     const name = groups[gId] ? groups[gId].name : 'グループ';
     if (confirm(`グループ「${name}」を削除しますか？\n（トーク履歴も消去されます）`)) {
@@ -1694,6 +1538,7 @@
     }
   }
 
+  /* 現在のチャット履歴を消去する処理 */
   function clearCurrentChat() {
     if (!activeTargetId) return;
     if (confirm('このトークのチャット履歴をすべて消去しますか？')) {
