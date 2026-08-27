@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ Ultimate Fix</title>
+  <title>LINE風チャットアプリ Ultimate Fix (Admin Edition)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -17,6 +17,7 @@
       --card-bg: #ffffff;
       --sub-bg: #f7f9fa;
       --border-color: #eee;
+      --admin-gold: #ffd700;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
@@ -52,10 +53,10 @@
     .header-btns { display: flex; gap: 6px; align-items: center; }
     .my-profile-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--card-bg); border-bottom: 1px solid var(--border-color); cursor: pointer; }
     .my-profile-card:hover { background: var(--sub-bg); }
-    .avatar { width: 48px; height: 48px; border-radius: 50%; background: #e0e0e0; display: flex; justify-content: center; align-items: center; font-size: 24px; flex-shrink: 0; color: #111; overflow: hidden; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; background: #e0e0e0; display: flex; justify-content: center; align-items: center; font-size: 24px; flex-shrink: 0; color: #111; overflow: hidden; position: relative; }
     .avatar img { width: 100%; height: 100%; object-fit: cover; }
     .profile-info { flex: 1; overflow: hidden; }
-    .profile-name { font-weight: bold; font-size: 15px; color: var(--text-color); }
+    .profile-name { font-weight: bold; font-size: 15px; color: var(--text-color); display: flex; align-items: center; gap: 4px; }
     .profile-status { font-size: 12px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* ID表示 & フレンド追加 */
@@ -66,6 +67,7 @@
     .btn-danger { background: #dc3545; }
     .btn-notify { background: #ff9800; }
     .btn-dark { background: #4a5568; color: white; }
+    .btn-admin { background: #d97706; color: white; }
     .btn-small { padding: 4px 8px; font-size: 11px; }
 
     .input-group { display: flex; gap: 6px; margin-top: 8px; }
@@ -104,7 +106,8 @@
     .message-audio { max-width: 200px; height: 40px; }
 
     /* システム通知メッセージ */
-    .system-msg { align-self: center; background: rgba(0,0,0,0.3); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin: 4px 0; }
+    .system-msg { align-self: center; background: rgba(0,0,0,0.4); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; margin: 4px 0; text-align: center; }
+    .admin-broadcast-msg { align-self: center; background: linear-gradient(135deg, #d97706, #b45309); color: white; padding: 6px 14px; border-radius: 12px; font-size: 12px; font-weight: bold; margin: 6px 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 
     /* 入力エリア */
     .chat-input-container { background-color: var(--card-bg); position: relative; border-top: 1px solid var(--border-color); }
@@ -173,6 +176,16 @@
     .call-btn:active { transform: scale(0.95); }
     .call-btn-accept { background: #28a745; }
     .call-btn-hangup { background: #dc3545; }
+
+    /* 管理者専用デザインスタイル */
+    .admin-badge {
+      background: linear-gradient(45deg, #ffd700, #ffa500);
+      color: #000; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 4px; vertical-align: middle;
+    }
+    .admin-card {
+      border: 2px solid #d97706; background: rgba(217, 119, 6, 0.05); padding: 10px; border-radius: 8px; margin-bottom: 10px;
+    }
+    .admin-card h4 { font-size: 13px; color: #d97706; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -181,8 +194,9 @@
 
   <div id="home-screen" class="screen active">
     <div class="home-header">
-      <span>ホーム</span>
+      <span id="home-title-text" onclick="handleSecretHomeClick()" style="cursor: pointer; user-select: none;">ホーム</span>
       <div class="header-btns">
+        <button class="btn btn-admin btn-small" id="admin-panel-btn" style="display: none;" onclick="openAdminModal()">👑 管理</button>
         <button class="btn btn-dark btn-small" id="dark-mode-btn" onclick="toggleDarkMode()">🌙 Dark</button>
         <button class="btn btn-notify btn-small" id="notify-perm-btn" onclick="requestNotificationPermission()">🔔 通知許可</button>
       </div>
@@ -286,6 +300,43 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="admin-pass-modal">
+    <div class="modal">
+      <h3 style="color: #d97706;">🔒 秘密の管理者認証</h3>
+      <p style="font-size: 12px; color: #666;">管理者用パスコードを入力してください。（初期パス: admin777）</p>
+      <input type="password" id="admin-pass-input" placeholder="パスコード...">
+      <div class="modal-btns">
+        <button class="btn btn-secondary" onclick="closeModal('admin-pass-modal')">キャンセル</button>
+        <button class="btn btn-admin" onclick="verifyAdminPassword()">認証</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="admin-modal">
+    <div class="modal" style="max-width: 380px;">
+      <h3 style="color: #d97706; display: flex; justify-content: space-between; align-items: center;">
+        <span>👑 管理者ダッシュボード</span>
+        <span class="admin-badge">ADMIN</span>
+      </h3>
+
+      <div class="admin-card">
+        <h4>📢 全体システムアナウンス</h4>
+        <input type="text" id="admin-broadcast-input" placeholder="全体に送るシステム通知..." style="width: 100%; padding: 6px; font-size: 12px; margin-bottom: 6px; border: 1px solid #ccc; border-radius: 4px;">
+        <button class="btn btn-admin btn-small" style="width: 100%;" onclick="sendAdminBroadcast()">全接続へ一斉配信</button>
+      </div>
+
+      <div class="admin-card">
+        <h4>🌐 接続インスペクター</h4>
+        <div id="admin-peer-list" style="font-size: 11px; max-height: 80px; overflow-y: auto; background: var(--sub-bg); padding: 4px; border-radius: 4px;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-danger btn-small" onclick="disableAdminMode()">管理者権限を無効化</button>
+        <button class="btn btn-secondary" onclick="closeModal('admin-modal')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="group-modal">
     <div class="modal">
       <h3>グループ作成</h3>
@@ -337,20 +388,25 @@
 
 <script>
   const STORAGE_KEY = 'LINE_APP_PERSISTENT_DATA_V3';
+  const ADMIN_PASSCODE = 'admin777'; // 秘密の管理者パスコード
 
   let peer = null;
   let myId = '';
-  let myProfile = { name: 'ユーザー', avatar: '👤', status: 'よろしくお願いします！' };
+  let myProfile = { name: 'ユーザー', avatar: '👤', status: 'よろしくお願いします！', isAdmin: false };
 
   let connections = {};
   let friends = {};
   let groups = {};
   let messages = {};
-  let wallpapers = {}; // 背景画像保存用
+  let wallpapers = {};
   let isDarkMode = false;
 
   let activeTargetId = null;
   let isGroupTarget = false;
+
+  // 秘密コマンドタップカウント
+  let secretClickCount = 0;
+  let secretClickTimer = null;
 
   // 録音関連変数
   let mediaRecorder = null;
@@ -364,6 +420,92 @@
   let currentCall = null;
   let localStream = null;
   let incomingCall = null;
+
+  /* 秘密コマンド判定 */
+  function handleSecretHomeClick() {
+    secretClickCount++;
+    clearTimeout(secretClickTimer);
+    
+    if (secretClickCount >= 5) {
+      secretClickCount = 0;
+      if (myProfile.isAdmin) {
+        openAdminModal();
+      } else {
+        document.getElementById('admin-pass-input').value = '';
+        document.getElementById('admin-pass-modal').classList.add('active');
+      }
+    } else {
+      secretClickTimer = setTimeout(() => { secretClickCount = 0; }, 2000);
+    }
+  }
+
+  function verifyAdminPassword() {
+    const inputPass = document.getElementById('admin-pass-input').value;
+    if (inputPass === ADMIN_PASSCODE) {
+      myProfile.isAdmin = true;
+      saveDataToStorage();
+      closeModal('admin-pass-modal');
+      updateAdminUI();
+      alert('👑 管理者権限が解放されました！');
+      openAdminModal();
+    } else {
+      alert('パスコードが違います');
+    }
+  }
+
+  function updateAdminUI() {
+    const adminBtn = document.getElementById('admin-panel-btn');
+    if (myProfile.isAdmin) {
+      adminBtn.style.display = 'block';
+      document.getElementById('my-name-disp').innerHTML = `${escapeHTML(myProfile.name)} <span class="admin-badge">ADMIN 👑</span>`;
+    } else {
+      adminBtn.style.display = 'none';
+      document.getElementById('my-name-disp').textContent = myProfile.name;
+    }
+  }
+
+  function disableAdminMode() {
+    if (confirm("管理者モードを無効化しますか？")) {
+      myProfile.isAdmin = false;
+      saveDataToStorage();
+      updateAdminUI();
+      closeModal('admin-modal');
+    }
+  }
+
+  function openAdminModal() {
+    const list = document.getElementById('admin-peer-list');
+    list.innerHTML = '';
+    const peers = Object.keys(connections);
+    if (peers.length === 0) {
+      list.innerHTML = '<span style="color:#aaa;">現在アクティブな接続相手はいません</span>';
+    } else {
+      peers.forEach(pId => {
+        const div = document.createElement('div');
+        div.textContent = `🟢 Peer ID: ${pId} (${friends[pId] ? friends[pId].name : '不明'})`;
+        list.appendChild(div);
+      });
+    }
+    document.getElementById('admin-modal').classList.add('active');
+  }
+
+  function sendAdminBroadcast() {
+    const text = document.getElementById('admin-broadcast-input').value.trim();
+    if (!text) return alert("メッセージを入力してください");
+
+    // 全接続しているピアに一斉一括送信
+    Object.keys(connections).forEach(pId => {
+      if (connections[pId]) {
+        connections[pId].send({
+          type: 'admin-broadcast',
+          text: `[管理者アナウンス] ${text}`
+        });
+      }
+    });
+
+    alert("全接続中ユーザーへ一斉配信しました");
+    document.getElementById('admin-broadcast-input').value = '';
+  }
 
   function renderAvatarHTML(avatarData) {
     if (avatarData && typeof avatarData === 'string' && avatarData.startsWith('data:image/')) {
@@ -433,8 +575,8 @@
       } catch (e) { console.error(e); }
     }
     document.getElementById('my-avatar-disp').innerHTML = renderAvatarHTML(myProfile.avatar);
-    document.getElementById('my-name-disp').textContent = myProfile.name;
     document.getElementById('my-status-disp').textContent = myProfile.status || '';
+    updateAdminUI();
   }
 
   function saveDataToStorage() {
@@ -490,7 +632,6 @@
 
     peer.on('connection', (conn) => setupConnection(conn));
 
-    // 通話着信の受信設定
     peer.on('call', (call) => {
       incomingCall = call;
       const callerProf = friends[call.peer] || { name: call.peer, avatar: '👤' };
@@ -529,7 +670,6 @@
     });
   }
 
-  // 接続時にメッセージ履歴を互いに同期（オフライン中の未達メッセージ解消）
   function syncMessageHistory(peerId) {
     if (!connections[peerId]) return;
 
@@ -560,6 +700,11 @@
       saveDataToStorage();
       renderLists();
     } 
+    else if (data.type === 'admin-broadcast') {
+      // 管理者からの一斉通知を受信
+      alert(data.text);
+      playNotificationSound();
+    }
     else if (data.type === 'chat-msg') {
       const targetId = data.groupId || fromPeerId;
       if (!messages[targetId]) messages[targetId] = [];
@@ -633,7 +778,6 @@
     if (connections[toPeerId]) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
   }
 
-  // フレンド追加処理 (user- の自動保持)
   function addAndConnectFriend() {
     const friendIdInput = document.getElementById('friend-id-input');
     const friendId = friendIdInput.value.trim();
@@ -648,8 +792,6 @@
     }
 
     setupConnection(peer.connect(friendId));
-    
-    // 送信完了後も user- を残す
     friendIdInput.value = 'user-';
   }
 
@@ -658,6 +800,15 @@
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     if (!text) return;
+
+    // 隠しチャットコマンド
+    if (text === '/admin') {
+      input.value = '';
+      if (myProfile.isAdmin) openAdminModal();
+      else handleSecretHomeClick();
+      return;
+    }
+
     dispatchMessage(text, false, false, false, false, false);
     input.value = '';
     document.getElementById('sticker-palette').classList.remove('active');
@@ -698,7 +849,6 @@
     const file = event.target.files[0];
     if (!file) return;
 
-    // 動画ファイル容量チェック (1GB超過時はエラー警告)
     if (file.size > 1024 * 1024 * 1024) {
       alert("動画サイズが大きすぎます。1GB以下の動画を選択してください。");
       event.target.value = '';
@@ -717,7 +867,6 @@
     event.target.value = '';
   }
 
-  // 壁紙選択処理
   function handleWallpaperSelect(event) {
     const file = event.target.files[0];
     if (!file || !activeTargetId) return;
@@ -741,13 +890,9 @@
     }
   }
 
-  // ボイスメッセージ録音処理
   async function toggleVoiceRecording() {
-    if (isRecording) {
-      stopAndSendRecording();
-    } else {
-      startRecording();
-    }
+    if (isRecording) stopAndSendRecording();
+    else startRecording();
   }
 
   async function startRecording() {
@@ -823,7 +968,6 @@
     document.getElementById('voice-btn').style.color = '';
   }
 
-  // 音声・ビデオ通話処理
   async function startCall(isVideo) {
     if (!activeTargetId || isGroupTarget) return alert('1対1のチャット相手と通話可能です');
     
@@ -854,7 +998,6 @@
 
   async function acceptIncomingCall() {
     try {
-      const isVideo = incomingCall.metadata && incomingCall.metadata.isVideo;
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
 
       document.getElementById('accept-call-btn').style.display = 'none';
@@ -1031,7 +1174,7 @@
       item.innerHTML = `
         <div class="avatar">${renderAvatarHTML(prof.avatar)}</div>
         <div class="profile-info">
-          <div class="profile-name">${escapeHTML(prof.name)}</div>
+          <div class="profile-name">${escapeHTML(prof.name)} ${prof.isAdmin ? '<span class="admin-badge">ADMIN 👑</span>' : ''}</div>
           <div class="profile-status" style="color: ${isOnline ? 'var(--line-green)' : '#aaa'};">
             ${isOnline ? '● オンライン' : '○ オフライン'}
           </div>
@@ -1099,8 +1242,8 @@
       myProfile.status = document.getElementById('edit-status').value.trim();
 
       document.getElementById('my-avatar-disp').innerHTML = renderAvatarHTML(myProfile.avatar);
-      document.getElementById('my-name-disp').textContent = myProfile.name;
       document.getElementById('my-status-disp').textContent = myProfile.status;
+      updateAdminUI();
       saveDataToStorage();
 
       Object.values(connections).forEach(conn => conn.send({ type: 'profile-sync', profile: myProfile }));
