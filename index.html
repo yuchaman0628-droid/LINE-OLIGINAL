@@ -250,6 +250,7 @@
 
 <div class="banned-overlay" id="banned-overlay">
   <div class="glitch-box">
+    <!-- 💀アイコンを5回連打すると救済（緊急パスコード解除）モーダルが作動 -->
     <div class="banned-icon" id="banned-glitch-icon" onclick="handleGlitchSecretClick()">☠️</div>
     <div class="banned-title">SYSTEM CORRUPTED</div>
     <div class="banned-text">
@@ -300,7 +301,6 @@
 
     <div class="action-bar">
       <button class="btn btn-secondary" style="flex: 1;" onclick="openGroupModal()">＋ グループ作成</button>
-      <button class="btn btn-danger" onclick="clearAllData()">履歴クリア</button>
     </div>
 
     <div class="list-container">
@@ -317,12 +317,12 @@
       <button class="back-btn" onclick="openHome()">◀ 戻る</button>
       <span id="chat-target-name" style="font-size: 15px; font-weight: bold;">チャット</span>
       <div class="chat-header-actions">
-        <button class="btn btn-danger btn-small" title="トーク履歴を消去" onclick="clearCurrentChat()">🗑️</button>
         <button class="btn btn-secondary btn-small" id="call-audio-btn" onclick="startCall(false)">📞</button>
         <button class="btn btn-secondary btn-small" id="call-video-btn" onclick="startCall(true)">📹</button>
         <button class="btn btn-secondary btn-small" onclick="document.getElementById('wallpaper-file-input').click()">🖼️</button>
         <input type="file" id="wallpaper-file-input" accept="image/*" style="display: none;" onchange="handleWallpaperSelect(event)">
         <button class="btn btn-secondary btn-small" id="add-member-btn" style="display: none;" onclick="openAddMemberModal()">⚙️</button>
+        <button class="btn btn-danger btn-small" onclick="clearCurrentChat()">🗑️ 消去</button>
       </div>
     </div>
 
@@ -819,10 +819,12 @@
     }
   }
 
-  function clearAllData() {
-    if (confirm("すべてのデータを初期化しますか？")) {
-      localStorage.removeItem(STORAGE_KEY);
-      location.reload();
+  function clearCurrentChat() {
+    if (!activeTargetId) return;
+    if (confirm("このチャットのメッセージ履歴を消去しますか？")) {
+      messages[activeTargetId] = [];
+      saveDataToStorage();
+      renderMessages();
     }
   }
 
@@ -1442,32 +1444,15 @@
       const item = document.createElement('div');
       item.className = 'list-item';
       item.onclick = () => openChat(fId, false, prof.name);
-
-      const avatarDiv = document.createElement('div');
-      avatarDiv.className = 'avatar';
-      avatarDiv.innerHTML = renderAvatarHTML(prof.avatar);
-
-      const infoDiv = document.createElement('div');
-      infoDiv.className = 'profile-info';
-      infoDiv.innerHTML = `
-        <div class="profile-name">${escapeHTML(prof.name)} ${prof.isAdmin ? '<span class="admin-badge">ADMIN 👑</span>' : ''} ${isBanned ? '<span style="color:red; font-size:10px;">[BAN中]</span>' : ''}</div>
-        <div class="profile-status" style="color: ${isBanned ? 'red' : (isOnline ? 'var(--line-green)' : '#aaa')};">
-          ${isBanned ? '🚫 BAN済み' : (isOnline ? '● オンライン' : '○ オフライン')}
+      item.innerHTML = `
+        <div class="avatar">${renderAvatarHTML(prof.avatar)}</div>
+        <div class="profile-info">
+          <div class="profile-name">${escapeHTML(prof.name)} ${prof.isAdmin ? '<span class="admin-badge">ADMIN 👑</span>' : ''} ${isBanned ? '<span style="color:red; font-size:10px;">[BAN中]</span>' : ''}</div>
+          <div class="profile-status" style="color: ${isBanned ? 'red' : (isOnline ? 'var(--line-green)' : '#aaa')};">
+            ${isBanned ? '🚫 BAN済み' : (isOnline ? '● オンライン' : '○ オフライン')}
+          </div>
         </div>
       `;
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn btn-danger btn-small';
-      delBtn.textContent = '🗑️';
-      delBtn.title = 'フレンドを削除';
-      delBtn.onclick = (e) => {
-        e.stopPropagation();
-        deleteFriend(fId);
-      };
-
-      item.appendChild(avatarDiv);
-      item.appendChild(infoDiv);
-      item.appendChild(delBtn);
       friendsContainer.appendChild(item);
     });
 
@@ -1478,74 +1463,15 @@
       const item = document.createElement('div');
       item.className = 'list-item';
       item.onclick = () => openChat(gId, true, g.name);
-
-      const avatarDiv = document.createElement('div');
-      avatarDiv.className = 'avatar';
-      avatarDiv.style.background = '#00b900';
-      avatarDiv.style.color = 'white';
-      avatarDiv.textContent = '👥';
-
-      const infoDiv = document.createElement('div');
-      infoDiv.className = 'profile-info';
-      infoDiv.innerHTML = `
-        <div class="profile-name">${escapeHTML(g.name)}</div>
-        <div class="profile-status">${g.members.length}人のメンバー</div>
+      item.innerHTML = `
+        <div class="avatar" style="background:#00b900; color:white;">👥</div>
+        <div class="profile-info">
+          <div class="profile-name">${escapeHTML(g.name)}</div>
+          <div class="profile-status">${g.members.length}人のメンバー</div>
+        </div>
       `;
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn btn-danger btn-small';
-      delBtn.textContent = '🗑️';
-      delBtn.title = 'グループを削除';
-      delBtn.onclick = (e) => {
-        e.stopPropagation();
-        deleteGroup(gId);
-      };
-
-      item.appendChild(avatarDiv);
-      item.appendChild(infoDiv);
-      item.appendChild(delBtn);
       groupsContainer.appendChild(item);
     });
-  }
-
-  /* フレンド削除処理 */
-  function deleteFriend(fId) {
-    const name = friends[fId] ? friends[fId].name : fId;
-    if (confirm(`フレンド「${name}」を削除しますか？\n（トーク履歴も消去されます）`)) {
-      if (connections[fId]) {
-        try { connections[fId].close(); } catch(e){}
-        delete connections[fId];
-      }
-      delete friends[fId];
-      delete messages[fId];
-      delete wallpapers[fId];
-      saveDataToStorage();
-      renderLists();
-      if (activeTargetId === fId) openHome();
-    }
-  }
-
-  /* グループ削除処理 */
-  function deleteGroup(gId) {
-    const name = groups[gId] ? groups[gId].name : 'グループ';
-    if (confirm(`グループ「${name}」を削除しますか？\n（トーク履歴も消去されます）`)) {
-      delete groups[gId];
-      delete messages[gId];
-      delete wallpapers[gId];
-      saveDataToStorage();
-      renderLists();
-      if (activeTargetId === gId) openHome();
-    }
-  }
-
-  /* 現在のチャット履歴を消去する処理 */
-  function clearCurrentChat() {
-    if (!activeTargetId) return;
-    if (confirm('このトークのチャット履歴をすべて消去しますか？')) {
-      messages[activeTargetId] = [];
-      saveDataToStorage();
-      renderMessages();
-    }
   }
 
   function openChat(targetId, isGroup, name) {
