@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE風チャットアプリ Complete (Admin & Unban Edition)</title>
+  <title>LINE風チャットアプリ Complete (Title & Terms Edition)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -270,7 +270,15 @@
 
 <div class="app-container">
 
-  <div id="home-screen" class="screen active">
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="screen active" style="justify-content: center; align-items: center; text-align: center; padding: 24px; background: linear-gradient(135deg, #06C755 0%, #00a040 100%); color: white;">
+    <div style="font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));">💬</div>
+    <h1 style="font-size: 26px; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px;">チャットアプリ</h1>
+    <p style="font-size: 13px; opacity: 0.9; margin-bottom: 48px;">みんなでリアルタイムにつながろう</p>
+    <button class="btn" style="background: white; color: #06C755; font-size: 18px; padding: 14px 48px; border-radius: 30px; box-shadow: 0 6px 16px rgba(0,0,0,0.2);" onclick="openTermsModal()">スタート</button>
+  </div>
+
+  <div id="home-screen" class="screen">
     <div class="home-header">
       <span id="home-title-text" onclick="handleSecretHomeClick()" style="cursor: pointer; user-select: none;">ホーム</span>
       <div class="header-btns">
@@ -359,6 +367,23 @@
         <input type="text" id="message-input" class="chat-input" placeholder="メッセージを入力..." autocomplete="off">
         <button type="submit" class="btn">➤</button>
       </form>
+    </div>
+  </div>
+
+  <!-- 利用規約モーダル -->
+  <div class="modal-overlay" id="terms-modal">
+    <div class="modal" style="max-width: 360px;">
+      <h3 style="text-align: center;">📜 利用規約</h3>
+      <div style="background: var(--sub-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <p style="font-size: 13px; line-height: 1.6; color: var(--text-color);">
+          【利用規約】<br>
+          本アプリは安全で快適なチャット環境を提供するために運用されています。他者への迷惑行為や不適切な発言、管理者に逆らった場合はBANされます。規約を守りマナーを持ってご利用ください。
+        </p>
+      </div>
+      <div class="modal-btns" style="justify-content: space-between; margin-top: 12px;">
+        <button class="btn btn-secondary" onclick="closeModal('terms-modal')">同意しない</button>
+        <button class="btn btn-success" onclick="acceptTerms()">同意する</button>
+      </div>
     </div>
   </div>
 
@@ -505,6 +530,17 @@
   let currentCall = null;
   let localStream = null;
   let incomingCall = null;
+
+  /* 利用規約・タイトル画面制御 */
+  function openTermsModal() {
+    document.getElementById('terms-modal').classList.add('active');
+  }
+
+  function acceptTerms() {
+    closeModal('terms-modal');
+    document.getElementById('title-screen').classList.remove('active');
+    document.getElementById('home-screen').classList.add('active');
+  }
 
   /* BAN画面の制御と隠し救済コマンド */
   function showBannedOverlay(show) {
