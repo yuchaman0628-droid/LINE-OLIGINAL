@@ -326,8 +326,8 @@
       </div>
 
       <div class="admin-card">
-        <h4>🌐 接続インスペクター</h4>
-        <div id="admin-peer-list" style="font-size: 11px; max-height: 80px; overflow-y: auto; background: var(--sub-bg); padding: 4px; border-radius: 4px;"></div>
+        <h4>🌐 ユーザー管理（接続 & BAN）</h4>
+        <div id="admin-peer-list" style="font-size: 11px; max-height: 140px; overflow-y: auto; background: var(--sub-bg); padding: 4px; border-radius: 4px;"></div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -399,6 +399,7 @@
   let groups = {};
   let messages = {};
   let wallpapers = {};
+  let bannedUsers = [];
   let isDarkMode = false;
 
   let activeTargetId = null;
@@ -476,17 +477,66 @@
   function openAdminModal() {
     const list = document.getElementById('admin-peer-list');
     list.innerHTML = '';
-    const peers = Object.keys(connections);
-    if (peers.length === 0) {
-      list.innerHTML = '<span style="color:#aaa;">現在アクティブな接続相手はいません</span>';
+    
+    const allUserIds = Array.from(new Set([
+      ...Object.keys(friends),
+      ...Object.keys(connections),
+      ...bannedUsers
+    ]));
+
+    if (allUserIds.length === 0) {
+      list.innerHTML = '<span style="color:#aaa;">ユーザーはいません</span>';
     } else {
-      peers.forEach(pId => {
+      allUserIds.forEach(pId => {
         const div = document.createElement('div');
-        div.textContent = `🟢 Peer ID: ${pId} (${friends[pId] ? friends[pId].name : '不明'})`;
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.alignItems = 'center';
+        div.style.marginBottom = '6px';
+        div.style.padding = '4px 0';
+        div.style.borderBottom = '1px solid var(--border-color)';
+
+        const isBanned = bannedUsers.includes(pId);
+        const isOnline = !!connections[pId];
+        const name = friends[pId] ? friends[pId].name : '不明';
+
+        const infoSpan = document.createElement('span');
+        infoSpan.style.fontSize = '11px';
+        infoSpan.innerHTML = `${isBanned ? '🔴 [BAN]' : (isOnline ? '🟢 [ONLINE]' : '⚪ [OFFLINE]')} <b>${escapeHTML(name)}</b><br><span style="color:#888;">ID: ${pId}</span>`;
+
+        const banBtn = document.createElement('button');
+        banBtn.className = isBanned ? 'btn btn-secondary btn-small' : 'btn btn-danger btn-small';
+        banBtn.textContent = isBanned ? '解除' : 'BAN';
+        banBtn.onclick = () => toggleBanUser(pId);
+
+        div.appendChild(infoSpan);
+        div.appendChild(banBtn);
         list.appendChild(div);
       });
     }
     document.getElementById('admin-modal').classList.add('active');
+  }
+
+  function toggleBanUser(pId) {
+    if (bannedUsers.includes(pId)) {
+      bannedUsers = bannedUsers.filter(id => id !== pId);
+      alert(`${pId} のBANを解除しました`);
+    } else {
+      if (confirm(`ID: ${pId} をBANしますか？\n（接続を強制切断しメッセージ送受信を拒否します）`)) {
+        bannedUsers.push(pId);
+        if (connections[pId]) {
+          try {
+            connections[pId].send({ type: 'banned', text: '管理者によってBANされました。' });
+          } catch(e){}
+          connections[pId].close();
+          delete connections[pId];
+        }
+        alert(`${pId} をBANしました`);
+      }
+    }
+    saveDataToStorage();
+    openAdminModal();
+    renderLists();
   }
 
   function sendAdminBroadcast() {
@@ -495,7 +545,7 @@
 
     // 全接続しているピアに一斉一括送信
     Object.keys(connections).forEach(pId => {
-      if (connections[pId]) {
+      if (connections[pId] && !bannedUsers.includes(pId)) {
         connections[pId].send({
           type: 'admin-broadcast',
           text: `[管理者アナウンス] ${text}`
@@ -565,6 +615,7 @@
         if (data.groups) groups = data.groups;
         if (data.messages) messages = data.messages;
         if (data.wallpapers) wallpapers = data.wallpapers;
+        if (data.bannedUsers) bannedUsers = data.bannedUsers;
         if (data.isDarkMode) {
           isDarkMode = data.isDarkMode;
           if (isDarkMode) {
@@ -582,7 +633,7 @@
   function saveDataToStorage() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, isDarkMode: isDarkMode
+        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, bannedUsers: bannedUsers, isDarkMode: isDarkMode
       }));
     } catch (e) {
       console.warn("Storage quota exceeded", e);
@@ -633,6 +684,7 @@
     peer.on('connection', (conn) => setupConnection(conn));
 
     peer.on('call', (call) => {
+      if (bannedUsers.includes(call.peer)) return;
       incomingCall = call;
       const callerProf = friends[call.peer] || { name: call.peer, avatar: '👤' };
       
@@ -650,11 +702,19 @@
 
   function autoReconnectFriends() {
     Object.keys(friends).forEach(fId => {
-      if (!connections[fId]) setupConnection(peer.connect(fId));
+      if (!connections[fId] && !bannedUsers.includes(fId)) setupConnection(peer.connect(fId));
     });
   }
 
   function setupConnection(conn) {
+    if (bannedUsers.includes(conn.peer)) {
+      conn.on('open', () => {
+        try { conn.send({ type: 'banned', text: '管理者によってBANされています。' }); } catch(e){}
+        setTimeout(() => conn.close(), 500);
+      });
+      return;
+    }
+
     connections[conn.peer] = conn;
 
     conn.on('open', () => {
@@ -671,7 +731,7 @@
   }
 
   function syncMessageHistory(peerId) {
-    if (!connections[peerId]) return;
+    if (!connections[peerId] || bannedUsers.includes(peerId)) return;
 
     if (messages[peerId]) {
       connections[peerId].send({
@@ -695,6 +755,16 @@
   }
 
   function handleIncomingData(fromPeerId, data) {
+    if (bannedUsers.includes(fromPeerId)) {
+      if (connections[fromPeerId]) connections[fromPeerId].close();
+      return;
+    }
+
+    if (data.type === 'banned') {
+      alert(data.text || '管理者によってBANされました。');
+      return;
+    }
+
     if (data.type === 'profile-sync') {
       friends[fromPeerId] = data.profile;
       saveDataToStorage();
@@ -775,7 +845,7 @@
   }
 
   function sendReadReceipt(toPeerId, msgIds) {
-    if (connections[toPeerId]) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
+    if (connections[toPeerId] && !bannedUsers.includes(toPeerId)) connections[toPeerId].send({ type: 'read-ack', msgIds: msgIds });
   }
 
   function addAndConnectFriend() {
@@ -784,6 +854,10 @@
     
     if (!friendId || friendId === 'user-' || friendId === myId) {
       return alert('有効なIDを入力してください');
+    }
+
+    if (bannedUsers.includes(friendId)) {
+      return alert('このユーザーはBANされているため追加できません');
     }
 
     if (!friends[friendId]) {
@@ -970,6 +1044,7 @@
 
   async function startCall(isVideo) {
     if (!activeTargetId || isGroupTarget) return alert('1対1のチャット相手と通話可能です');
+    if (bannedUsers.includes(activeTargetId)) return alert('BANされたユーザーには発信できません');
     
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
@@ -1055,7 +1130,7 @@
     saveDataToStorage();
 
     if (!isGroupTarget) {
-      if (connections[activeTargetId]) {
+      if (connections[activeTargetId] && !bannedUsers.includes(activeTargetId)) {
         try {
           connections[activeTargetId].send({
             type: 'chat-msg', msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
@@ -1066,7 +1141,7 @@
       const group = groups[activeTargetId];
       if (group) {
         group.members.forEach(mId => {
-          if (mId !== myId && connections[mId]) {
+          if (mId !== myId && connections[mId] && !bannedUsers.includes(mId)) {
             try {
               connections[mId].send({
                 type: 'chat-msg', groupId: activeTargetId, msgId: msgId, text: content, isSticker: isSticker, isImage: isImage, isVideo: isVideo, isAudio: isAudio, isSystem: isSystem, time: time
@@ -1155,7 +1230,7 @@
 
     container.scrollTop = container.scrollHeight;
     if (unreadMsgIds.length > 0) saveDataToStorage();
-    if (unreadMsgIds.length > 0 && !isGroupTarget && connections[activeTargetId]) {
+    if (unreadMsgIds.length > 0 && !isGroupTarget && connections[activeTargetId] && !bannedUsers.includes(activeTargetId)) {
       sendReadReceipt(activeTargetId, unreadMsgIds);
     }
   }
@@ -1168,15 +1243,17 @@
     allFriendIds.forEach(fId => {
       const prof = friends[fId] || { name: fId, avatar: '👤', status: '' };
       const isOnline = !!connections[fId];
+      const isBanned = bannedUsers.includes(fId);
+
       const item = document.createElement('div');
       item.className = 'list-item';
       item.onclick = () => openChat(fId, false, prof.name);
       item.innerHTML = `
         <div class="avatar">${renderAvatarHTML(prof.avatar)}</div>
         <div class="profile-info">
-          <div class="profile-name">${escapeHTML(prof.name)} ${prof.isAdmin ? '<span class="admin-badge">ADMIN 👑</span>' : ''}</div>
-          <div class="profile-status" style="color: ${isOnline ? 'var(--line-green)' : '#aaa'};">
-            ${isOnline ? '● オンライン' : '○ オフライン'}
+          <div class="profile-name">${escapeHTML(prof.name)} ${prof.isAdmin ? '<span class="admin-badge">ADMIN 👑</span>' : ''} ${isBanned ? '<span style="color:red; font-size:10px;">[BAN]</span>' : ''}</div>
+          <div class="profile-status" style="color: ${isBanned ? 'red' : (isOnline ? 'var(--line-green)' : '#aaa')};">
+            ${isBanned ? '🚫 BAN済み' : (isOnline ? '● オンライン' : '○ オフライン')}
           </div>
         </div>
       `;
@@ -1302,7 +1379,7 @@
     saveDataToStorage();
 
     selectedMembers.forEach(mId => {
-      if (mId !== myId && connections[mId]) {
+      if (mId !== myId && connections[mId] && !bannedUsers.includes(mId)) {
         connections[mId].send({ type: 'group-sync', groupId: groupId, groupName: name, members: selectedMembers });
       }
     });
@@ -1353,7 +1430,7 @@
     saveDataToStorage();
 
     group.members.forEach(mId => {
-      if (mId !== myId && connections[mId]) {
+      if (mId !== myId && connections[mId] && !bannedUsers.includes(mId)) {
         connections[mId].send({
           type: 'group-sync', groupId: activeTargetId, groupName: group.name, members: group.members
         });
