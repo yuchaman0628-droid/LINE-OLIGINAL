@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -186,9 +187,26 @@
       border: 2px solid #d97706; background: rgba(217, 119, 6, 0.05); padding: 10px; border-radius: 8px; margin-bottom: 10px;
     }
     .admin-card h4 { font-size: 13px; color: #d97706; margin-bottom: 6px; }
+
+    /* BAN全画面オーバーレイ */
+    .banned-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #0f172a; color: #ef4444; z-index: 99999; flex-direction: column;
+      justify-content: center; align-items: center; text-align: center; padding: 20px;
+    }
+    .banned-overlay.active { display: flex; }
+    .banned-icon { font-size: 64px; margin-bottom: 16px; }
+    .banned-title { font-size: 22px; font-weight: bold; margin-bottom: 8px; color: #ef4444; }
+    .banned-text { font-size: 13px; color: #94a3b8; max-width: 280px; line-height: 1.6; }
   </style>
 </head>
 <body>
+
+<div class="banned-overlay" id="banned-overlay">
+  <div class="banned-icon">🚫</div>
+  <div class="banned-title">BANされました</div>
+  <div class="banned-text">管理者によってアカウントが停止されています。<br>解除されるまでアプリを利用することはできません。</div>
+</div>
 
 <div class="app-container">
 
@@ -401,6 +419,7 @@
   let wallpapers = {};
   let bannedUsers = [];
   let isDarkMode = false;
+  let isBannedSelf = false;
 
   let activeTargetId = null;
   let isGroupTarget = false;
@@ -421,6 +440,15 @@
   let currentCall = null;
   let localStream = null;
   let incomingCall = null;
+
+  function showBannedOverlay(show) {
+    const overlay = document.getElementById('banned-overlay');
+    if (show) {
+      overlay.classList.add('active');
+    } else {
+      overlay.classList.remove('active');
+    }
+  }
 
   /* 秘密コマンド判定 */
   function handleSecretHomeClick() {
@@ -521,15 +549,25 @@
     if (bannedUsers.includes(pId)) {
       bannedUsers = bannedUsers.filter(id => id !== pId);
       alert(`${pId} のBANを解除しました`);
+      try {
+        const conn = peer.connect(pId);
+        conn.on('open', () => {
+          conn.send({ type: 'ban-status', banned: false });
+        });
+      } catch(e){}
     } else {
       if (confirm(`ID: ${pId} をBANしますか？\n（接続を強制切断しメッセージ送受信を拒否します）`)) {
         bannedUsers.push(pId);
         if (connections[pId]) {
           try {
-            connections[pId].send({ type: 'banned', text: '管理者によってBANされました。' });
+            connections[pId].send({ type: 'ban-status', banned: true });
           } catch(e){}
-          connections[pId].close();
-          delete connections[pId];
+          setTimeout(() => {
+            if (connections[pId]) {
+              connections[pId].close();
+              delete connections[pId];
+            }
+          }, 300);
         }
         alert(`${pId} をBANしました`);
       }
@@ -616,6 +654,7 @@
         if (data.messages) messages = data.messages;
         if (data.wallpapers) wallpapers = data.wallpapers;
         if (data.bannedUsers) bannedUsers = data.bannedUsers;
+        if (data.isBannedSelf) isBannedSelf = data.isBannedSelf;
         if (data.isDarkMode) {
           isDarkMode = data.isDarkMode;
           if (isDarkMode) {
@@ -628,12 +667,13 @@
     document.getElementById('my-avatar-disp').innerHTML = renderAvatarHTML(myProfile.avatar);
     document.getElementById('my-status-disp').textContent = myProfile.status || '';
     updateAdminUI();
+    if (isBannedSelf) showBannedOverlay(true);
   }
 
   function saveDataToStorage() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, bannedUsers: bannedUsers, isDarkMode: isDarkMode
+        myId: myId, myProfile: myProfile, friends: friends, groups: groups, messages: messages, wallpapers: wallpapers, bannedUsers: bannedUsers, isDarkMode: isDarkMode, isBannedSelf: isBannedSelf
       }));
     } catch (e) {
       console.warn("Storage quota exceeded", e);
@@ -684,7 +724,7 @@
     peer.on('connection', (conn) => setupConnection(conn));
 
     peer.on('call', (call) => {
-      if (bannedUsers.includes(call.peer)) return;
+      if (bannedUsers.includes(call.peer) || isBannedSelf) return;
       incomingCall = call;
       const callerProf = friends[call.peer] || { name: call.peer, avatar: '👤' };
       
@@ -709,7 +749,7 @@
   function setupConnection(conn) {
     if (bannedUsers.includes(conn.peer)) {
       conn.on('open', () => {
-        try { conn.send({ type: 'banned', text: '管理者によってBANされています。' }); } catch(e){}
+        try { conn.send({ type: 'ban-status', banned: true }); } catch(e){}
         setTimeout(() => conn.close(), 500);
       });
       return;
@@ -755,13 +795,19 @@
   }
 
   function handleIncomingData(fromPeerId, data) {
-    if (bannedUsers.includes(fromPeerId)) {
-      if (connections[fromPeerId]) connections[fromPeerId].close();
+    if (data.type === 'ban-status' || data.type === 'banned') {
+      const bannedState = (data.banned !== undefined) ? data.banned : true;
+      isBannedSelf = bannedState;
+      saveDataToStorage();
+      showBannedOverlay(isBannedSelf);
+      if (isBannedSelf && connections[fromPeerId]) {
+        connections[fromPeerId].close();
+      }
       return;
     }
 
-    if (data.type === 'banned') {
-      alert(data.text || '管理者によってBANされました。');
+    if (bannedUsers.includes(fromPeerId) || isBannedSelf) {
+      if (connections[fromPeerId]) connections[fromPeerId].close();
       return;
     }
 
@@ -771,7 +817,6 @@
       renderLists();
     } 
     else if (data.type === 'admin-broadcast') {
-      // 管理者からの一斉通知を受信
       alert(data.text);
       playNotificationSound();
     }
